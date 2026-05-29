@@ -1,0 +1,29 @@
+repositories:
+  stretch4_ros2:
+    type: git
+    url: https://github.com/hello-robot/stretch4_ros2
+    version: jazzy
+  stretch4_web_teleop:
+    type: git
+    url: https://github.com/hello-robot/stretch4_web_teleop
+    version: main
+  ros2_numpy:
+    type: git
+    url: https://github.com/hello-robot/ros2_numpy
+    version: jazzy
+  HesaiLidar_ROS_2.0:
+    type: git
+    url: https://github.com/hello-robot/HesaiLidar_ROS_2.0
+    version: master
+  depthai-ros:
+    type: git
+    url: https://github.com/luxonis/depthai-ros
+    version: d6b261014620a9816632c608f4dcc161a3df58ce
+  depthai-core:
+    type: git
+    url: https://github.com/luxonis/depthai-core
+    version: e7e89a18eea33553f2da73d61152dadb22d9680a
+  vision_opencv:
+    type: git
+    url: https://github.com/Benjamin-Tan/vision_opencv
+    version: use_nanobind

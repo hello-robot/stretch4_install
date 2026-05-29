@@ -1,0 +1,15 @@
+[Unit]
+Description=Stretch ROS2 Zenoh Router
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+Environment="RMW_IMPLEMENTATION=rmw_zenoh_cpp"
+ExecStart=/bin/bash -c "source __USER_HOME__/ament_ws/install/setup.bash && exec ros2 run rmw_zenoh_cpp rmw_zenohd"
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

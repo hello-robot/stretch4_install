@@ -1,0 +1,3 @@
+ALL ALL=(ALL) NOPASSWD: /sbin/shutdown
+
+%users ALL=(ALL) NOPASSWD: /usr/bin/powerprofilesctl
