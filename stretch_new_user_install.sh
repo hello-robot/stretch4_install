@@ -190,16 +190,15 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch4 URDF"
     python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
 
-    # # TODO:
-    # echo "Install Stretch Animate"
-    # cd ~/repos
-    # if [ ! -d "stretch_animate" ]; then
-    #     git clone https://github.com/hello-robot/stretch_animate.git &>> $REDIRECT_LOGFILE
-    # fi
-    # cd ~/repos/stretch_animate
-    # git checkout main &>> $REDIRECT_LOGFILE
-    # git pull &>> $REDIRECT_LOGFILE
-    # python3 -m pip install -e . &>> $REDIRECT_LOGFILE
+    echo "Install Stretch Flying Gripper"
+    cd ~/repos
+    if [ ! -d "stretch4_flying_gripper" ]; then
+        git clone https://github.com/hello-robot/stretch4_flying_gripper.git &>> $REDIRECT_LOGFILE
+    fi
+    cd ~/repos/stretch4_flying_gripper
+    git checkout main &>> $REDIRECT_LOGFILE
+    git pull &>> $REDIRECT_LOGFILE
+    python3 -m pip install -e . &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch4 Body"
     python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
