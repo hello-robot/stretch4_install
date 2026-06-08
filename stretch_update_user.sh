@@ -5,7 +5,6 @@ REPOS=(
     "$HOME/repos/stretch4_body"
     "$HOME/repos/stretch4_urdf"
     "$HOME/repos/stretch_tray"
-    "$HOME/repos/stretch_animate"
     "$HOME/ament_ws/src/stretch4_ros2"
 )
 
