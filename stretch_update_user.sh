@@ -219,6 +219,9 @@ update_repos() {
             SUCCESSFUL_REPOS+=("$repo_name")
         fi
     done
+    # Ensure ~/.bashrc is updated with the unified virtualenv and ROS sourcing block
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    bash "$SCRIPT_DIR/stretch_venv/update_bashrc.sh"
 
     # 5. Summary Output
     echo ""

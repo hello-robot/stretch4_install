@@ -153,19 +153,6 @@ source $AMENT_WSDIR/install/setup.bash
 echo "Updating port privledges..."
 sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80 &>> $REDIRECT_LOGFILE
 echo net.ipv4.ip_unprivileged_port_start=80 | sudo tee --append /etc/sysctl.d/99-sysctl.conf &>> $REDIRECT_LOGFILE
-echo "Update ~/.bashrc dotfile to source workspace and virtual environment..."
-echo "source $AMENT_WSDIR/install/setup.bash" >> ~/.bashrc
-echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
-
-if ! grep -q "stretch_venv/bin/activate" ~/.bashrc; then
-    echo "" >> ~/.bashrc
-    echo "# Activate the uv Python Virtual Environment" >> ~/.bashrc
-    echo "if [ -f ~/stretch_user/stretch_venv/bin/activate ]; then" >> ~/.bashrc
-    echo "    source ~/stretch_user/stretch_venv/bin/activate" >> ~/.bashrc
-    echo "    PY_VER=\$(python3 -c \"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')\")" >> ~/.bashrc
-    echo "    export PYTHONPATH=~/stretch_user/stretch_venv/lib/python\${PY_VER}/site-packages:\$PYTHONPATH" >> ~/.bashrc
-    echo "fi" >> ~/.bashrc
-fi
 
 
 echo "Installing Zenoh router system service..."

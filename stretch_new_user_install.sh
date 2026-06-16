@@ -104,8 +104,10 @@ else
     echo "export PYTHONWARNINGS='ignore:setup.py install is deprecated,ignore:Invalid dash-separated options,ignore:pkg_resources is deprecated as an API,ignore:Usage of dash-separated'" >> ~/.bashrc
     if [[ $factory_osdir = "24.04" ]]; then
         echo "export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> ~/.bashrc
-        echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
     fi
+
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    bash "$SCRIPT_DIR/stretch_venv/update_bashrc.sh"
 fi
 
 
