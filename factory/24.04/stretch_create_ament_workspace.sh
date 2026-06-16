@@ -36,6 +36,20 @@ function on_failure {
 
 trap 'on_failure $LINENO "$BASH_COMMAND"' ERR
 
+if [ ! -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
+    echo "ERROR: The virtual environment ~/stretch_user/stretch_venv does not exist."
+    echo "Please run the setup script to generate it:"
+    if [ -d "$HOME/stretch4_install" ]; then
+        echo "    ~/stretch4_install/stretch_venv/setup_venv.sh"
+    else
+        echo "    ~/stretch_install/stretch_venv/setup_venv.sh"
+    fi
+    echo "Exiting."
+    exit 1
+fi
+
+source "$HOME/stretch_user/stretch_venv/bin/activate"
+
 echo "###########################################"
 echo "CREATING JAZZY AMENT WORKSPACE at $AMENT_WSDIR"
 echo "###########################################"
@@ -70,10 +84,9 @@ echo "Ensuring build tools are present (required for depthai-core/vcpkg)..."
 sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
 
 echo "Purging pip cache..."
-export PIP_BREAK_SYSTEM_PACKAGES=1
-pip3 cache purge &>> $REDIRECT_LOGFILE
+export PATH="${HOME}/.local/bin:${PATH}"
+uv pip cache purge &>> $REDIRECT_LOGFILE || true
 
-export PATH=${PATH}:~/.local/bin
 . /etc/hello-robot/hello-robot.conf
 export HELLO_FLEET_ID=$HELLO_FLEET_ID
 export HELLO_FLEET_PATH=${HOME}/stretch_user
@@ -131,7 +144,6 @@ echo keyfile=${HELLO_FLEET_ID}+6-key.pem >> .env
 cd $AMENT_WSDIR/
 
 echo "Compile the workspace (this might take a while)..."
-pip3 uninstall -y nose &>> $REDIRECT_LOGFILE
 export MAKEFLAGS="-j 4" # the NUC cannot handle the memory intensive build of depthai_core, this and --executor sequential are the best config for getting a successful build.
 colcon build --symlink-install --executor sequential &>> $REDIRECT_LOGFILE
 unset MAKEFLAGS
@@ -141,9 +153,19 @@ source $AMENT_WSDIR/install/setup.bash
 echo "Updating port privledges..."
 sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80 &>> $REDIRECT_LOGFILE
 echo net.ipv4.ip_unprivileged_port_start=80 | sudo tee --append /etc/sysctl.d/99-sysctl.conf &>> $REDIRECT_LOGFILE
-echo "Update ~/.bashrc dotfile to source workspace..."
+echo "Update ~/.bashrc dotfile to source workspace and virtual environment..."
 echo "source $AMENT_WSDIR/install/setup.bash" >> ~/.bashrc
 echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
+
+if ! grep -q "stretch_venv/bin/activate" ~/.bashrc; then
+    echo "" >> ~/.bashrc
+    echo "# Activate the uv Python Virtual Environment" >> ~/.bashrc
+    echo "if [ -f ~/stretch_user/stretch_venv/bin/activate ]; then" >> ~/.bashrc
+    echo "    source ~/stretch_user/stretch_venv/bin/activate" >> ~/.bashrc
+    echo "    PY_VER=\$(python3 -c \"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')\")" >> ~/.bashrc
+    echo "    export PYTHONPATH=~/stretch_user/stretch_venv/lib/python\${PY_VER}/site-packages:\$PYTHONPATH" >> ~/.bashrc
+    echo "fi" >> ~/.bashrc
+fi
 
 
 echo "Installing Zenoh router system service..."

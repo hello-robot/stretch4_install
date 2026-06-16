@@ -77,6 +77,22 @@ create_release() {
 # Function to handle the update process
 update_repos() {
     echo "--- Updating Local Repositories ---"
+
+    # Activate virtual environment if present
+    if [ -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
+        source "$HOME/stretch_user/stretch_venv/bin/activate"
+    fi
+
+    # Update the uv virtual environment dependencies if the repo configuration changed
+    if [ -d "$HOME/stretch_user/stretch_venv" ]; then
+        echo " -> Updating uv virtual environment dependencies..."
+        export PATH="${HOME}/.local/bin:${PATH}"
+        export UV_PROJECT_ENVIRONMENT="$HOME/stretch_user/stretch_venv"
+        SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+        if [ -d "$SCRIPT_DIR/stretch_venv" ]; then
+            (cd "$SCRIPT_DIR/stretch_venv" && uv sync --frozen)
+        fi
+    fi
     
     # 1. Fail early if any existing repository has uncommitted changes
     for repo_path in "${REPOS[@]}"; do
