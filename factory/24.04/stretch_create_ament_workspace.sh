@@ -133,7 +133,7 @@ cd $AMENT_WSDIR/
 echo "Compile the workspace (this might take a while)..."
 pip3 uninstall -y nose &>> $REDIRECT_LOGFILE
 export MAKEFLAGS="-j 4" # the NUC cannot handle the memory intensive build of depthai_core, this and --executor sequential are the best config for getting a successful build.
-colcon build --symlink-install --allow-overriding nav2_costmap_2d --executor sequential &>> $REDIRECT_LOGFILE
+colcon build --symlink-install --executor sequential &>> $REDIRECT_LOGFILE
 unset MAKEFLAGS
 
 echo "Source setup.bash file..."
