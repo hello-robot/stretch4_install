@@ -7,6 +7,20 @@ if getopts ":l:" opt && [[ $opt == "l" && -d $OPTARG ]]; then
 fi
 REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_install_dev_tools.`date '+%Y%m%d%H%M'`_redirected.txt"
 
+if [ ! -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
+    echo "ERROR: The virtual environment ~/stretch_user/stretch_venv does not exist."
+    echo "Please run the setup script to generate it:"
+    if [ -d "$HOME/stretch4_install" ]; then
+        echo "    ~/stretch4_install/stretch_venv/setup_venv.sh"
+    else
+        echo "    ~/stretch_install/stretch_venv/setup_venv.sh"
+    fi
+    echo "Exiting."
+    exit 1
+fi
+
+source "$HOME/stretch_user/stretch_venv/bin/activate"
+
 echo "#############################################"
 echo "INSTALLATION OF DEV TOOLS FOR HELLO ROBOT INTERNAL PRODUCTION"
 echo "#############################################"

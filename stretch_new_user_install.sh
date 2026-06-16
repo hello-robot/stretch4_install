@@ -108,7 +108,6 @@ else
     echo "export LRS_LOG_LEVEL=None #Debug" >> ~/.bashrc
     echo "export PYTHONWARNINGS='ignore:setup.py install is deprecated,ignore:Invalid dash-separated options,ignore:pkg_resources is deprecated as an API,ignore:Usage of dash-separated'" >> ~/.bashrc
     if [[ $factory_osdir = "24.04" ]]; then
-        echo "export PIP_BREAK_SYSTEM_PACKAGES=1" >> ~/.bashrc
         echo "export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> ~/.bashrc
         echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
     fi
@@ -198,9 +197,8 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Disabling audio suppression"
     python3 $HOME/stretch4_install/factory/$factory_osdir/hello_robot_audio_disable_suspension.py &>> $REDIRECT_LOGFILE
     
-    export PIP_BREAK_SYSTEM_PACKAGES=1
     echo "###########################################"
-    echo "INSTALLATION OF USER LEVEL PIP3 PACKAGES"
+    echo "CREATING AND SYNCHRONIZING STRETCH PYTHON VIRTUAL ENVIRONMENT"
     echo "###########################################"
     echo "Upgrade pip3"
     python3 -m pip -q install --no-warn-script-location --user --upgrade pip &>> $REDIRECT_LOGFILE
@@ -213,8 +211,9 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch Flying Gripper"
     python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
 
-    echo "Install Stretch4 Body"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
+    # Call the dedicated setup_venv.sh script
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    bash "$SCRIPT_DIR/stretch_venv/setup_venv.sh" &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch 4 Tray"
     python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE

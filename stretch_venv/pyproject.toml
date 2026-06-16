@@ -1,0 +1,12 @@
+[project]
+name = "stretch4-venv"
+version = "0.1.0"
+description = "Encapsulated python environment for Stretch 4"
+requires-python = ">=3.12"
+dependencies = [
+    "hello-robot-stretch4-urdf",
+    "hello-robot-stretch4-body",
+]
+
+[tool.uv]
+package = false
