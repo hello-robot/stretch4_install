@@ -36,8 +36,9 @@ function on_failure {
 
 trap 'on_failure $LINENO "$BASH_COMMAND"' ERR
 
-if [ ! -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
-    echo "ERROR: The virtual environment ~/stretch_user/stretch_venv does not exist."
+PIXI_ENV_DIR="$HOME/stretch_install/stretch_venv/.pixi/envs/default"
+if [ ! -d "$PIXI_ENV_DIR" ]; then
+    echo "ERROR: The unified environment $PIXI_ENV_DIR does not exist."
     echo "Please run the setup script to generate it:"
     if [ -d "$HOME/stretch4_install" ]; then
         echo "    ~/stretch4_install/stretch_venv/setup_venv.sh"
@@ -48,7 +49,12 @@ if [ ! -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
     exit 1
 fi
 
-source "$HOME/stretch_user/stretch_venv/bin/activate"
+# Source Pixi Environment
+export PATH="$PIXI_ENV_DIR/bin:$PATH"
+export CONDA_PREFIX="$PIXI_ENV_DIR"
+for f in "$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
+    if [ -f "$f" ]; then source "$f"; fi
+done
 
 echo "###########################################"
 echo "CREATING JAZZY AMENT WORKSPACE at $AMENT_WSDIR"
@@ -83,9 +89,8 @@ sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Ensuring build tools are present (required for depthai-core/vcpkg)..."
 sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
 
-echo "Purging pip cache..."
-export PATH="${HOME}/.local/bin:${PATH}"
-uv pip cache purge &>> $REDIRECT_LOGFILE || true
+echo "Cleaning pixi cache..."
+pixi clean --all >> $REDIRECT_LOGFILE || true
 
 . /etc/hello-robot/hello-robot.conf
 export HELLO_FLEET_ID=$HELLO_FLEET_ID

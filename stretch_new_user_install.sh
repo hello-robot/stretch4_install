@@ -99,7 +99,7 @@ else
     echo "######################" >> ~/.bashrc
     echo "export HELLO_FLEET_PATH=${HOME}/stretch_user" >> ~/.bashrc
     echo "export HELLO_FLEET_ID=${HELLO_FLEET_ID}">> ~/.bashrc
-    echo "export PATH=\${PATH}:~/.local/bin" >> ~/.bashrc
+    echo "export PATH=\${PATH}:~/.local/bin:~/.pixi/bin" >> ~/.bashrc
     echo "export LRS_LOG_LEVEL=None #Debug" >> ~/.bashrc
     echo "export PYTHONWARNINGS='ignore:setup.py install is deprecated,ignore:Invalid dash-separated options,ignore:pkg_resources is deprecated as an API,ignore:Usage of dash-separated'" >> ~/.bashrc
     if [[ $factory_osdir = "24.04" ]]; then
@@ -158,8 +158,9 @@ chmod +x ~/.config/autostart/stretch_gamepad_teleop.desktop
 echo "Updating media assets..."
 sudo cp $HOME/stretch4_install/factory/$factory_osdir/stretch_about.png /etc/hello-robot
 
-echo "Install uv"
-curl -LsSf https://astral.sh/uv/install.sh | sh &>> $REDIRECT_LOGFILE
+echo "Install pixi"
+curl -fsSL https://pixi.sh/install.sh | sh &>> $REDIRECT_LOGFILE
+export PATH="${HOME}/.pixi/bin:${PATH}"
 
 echo "Adding user to the dialout group to access Arduino..."
 sudo adduser $USER dialout >> $REDIRECT_LOGFILE

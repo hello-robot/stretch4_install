@@ -78,19 +78,23 @@ create_release() {
 update_repos() {
     echo "--- Updating Local Repositories ---"
 
-    # Activate virtual environment if present
-    if [ -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
-        source "$HOME/stretch_user/stretch_venv/bin/activate"
+    # Activate unified environment if present
+    PIXI_ENV_DIR="$HOME/stretch_install/stretch_venv/.pixi/envs/default"
+    if [ -d "$PIXI_ENV_DIR" ]; then
+        export PATH="$PIXI_ENV_DIR/bin:$PATH"
+        export CONDA_PREFIX="$PIXI_ENV_DIR"
+        for f in "$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
+            if [ -f "$f" ]; then source "$f"; fi
+        done
     fi
 
-    # Update the uv virtual environment dependencies if the repo configuration changed
-    if [ -d "$HOME/stretch_user/stretch_venv" ]; then
-        echo " -> Updating uv virtual environment dependencies..."
-        export PATH="${HOME}/.local/bin:${PATH}"
-        export UV_PROJECT_ENVIRONMENT="$HOME/stretch_user/stretch_venv"
+    # Update the pixi environment dependencies if the repo configuration changed
+    if [ -d "$HOME/stretch_install/stretch_venv" ]; then
+        echo " -> Updating pixi unified environment dependencies..."
+        export PATH="${HOME}/.pixi/bin:${PATH}"
         SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
         if [ -d "$SCRIPT_DIR/stretch_venv" ]; then
-            (cd "$SCRIPT_DIR/stretch_venv" && uv sync --frozen)
+            (cd "$SCRIPT_DIR/stretch_venv" && pixi install)
         fi
     fi
     
