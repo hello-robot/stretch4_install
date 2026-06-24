@@ -22,6 +22,12 @@ ninja = "*"
 compilers = "*"
 pkg-config = "*"
 ccache = "*"
+pip = "*"
+transforms3d = "*"
+opencv = "*"
+open3d = "*"
+libusb = "*"
+libgl = "*"
 
 [tool.pixi.pypi-dependencies]
 stretch4-venv = { path = ".", editable = true }
