@@ -4,8 +4,6 @@
 set -e
 
 BASHRC="$HOME/.bashrc"
-INSTALL_ROOT="$(dirname "$(dirname "$(readlink -f "$0")")")"
-VENV_PATH_REL="${INSTALL_ROOT#$HOME/}/stretch_venv"
 
 if [ ! -f "$BASHRC" ]; then
     echo "No ~/.bashrc file found. Creating one..."
@@ -30,9 +28,9 @@ done < "$BASHRC"
 mv "$TEMP_BASHRC" "$BASHRC"
 
 # Append the unified conditional block if it is not already present
-if ! grep -q "$VENV_PATH_REL/.pixi" "$BASHRC"; then
+if ! grep -q "stretch_install/stretch_venv/.pixi" "$BASHRC"; then
     echo "Appending unified ROS 2 & Virtual Environment setup block to ~/.bashrc..."
-    cat << EOF >> "$BASHRC"
+    cat << 'EOF' >> "$BASHRC"
 
 # STRETCH ROS2 & UNIFIED ENVIRONMENT SETUP
 if [ -f /opt/ros/jazzy/setup.bash ]; then
@@ -46,15 +44,15 @@ if [ -f /usr/share/colcon_cd/function/colcon_cd.sh ]; then
 fi
 
 # Activate the Pixi environment if it exists
-PIXI_ENV_ACTIVATE="\$HOME/$VENV_PATH_REL/.pixi/envs/default/etc/conda/activate.d/activate.sh"
+PIXI_ENV_ACTIVATE="$HOME/stretch_install/stretch_venv/.pixi/envs/default/etc/conda/activate.d/activate.sh"
 # Alternatively, we can use 'pixi shell' logic or just source the bin/activate if it's a conda env
 # The most robust way is to source the activate script provided by pixi/conda
-if [ -d "\$HOME/$VENV_PATH_REL/.pixi/envs/default" ]; then
-    export PATH="\$HOME/$VENV_PATH_REL/.pixi/envs/default/bin:\$PATH"
-    export CONDA_PREFIX="\$HOME/$VENV_PATH_REL/.pixi/envs/default"
+if [ -d "$HOME/stretch_install/stretch_venv/.pixi/envs/default" ]; then
+    export PATH="$HOME/stretch_install/stretch_venv/.pixi/envs/default/bin:$PATH"
+    export CONDA_PREFIX="$HOME/stretch_install/stretch_venv/.pixi/envs/default"
     # Source conda activation scripts if they exist
-    for f in "\$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
-        if [ -f "\$f" ]; then source "\$f"; fi
+    for f in "$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
+        if [ -f "$f" ]; then source "$f"; fi
     done
 fi
 EOF

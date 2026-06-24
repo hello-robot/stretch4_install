@@ -29,8 +29,7 @@ function on_failure {
     echo "FAILURE. UPDATING ROS WORKSPACE DID NOT COMPLETE."
     echo "Failed at line: $failed_line"
     echo "Failed command: $failed_command"
-    echo "Last 20 lines of $REDIRECT_LOGFILE:"
-    tail -n 20 "$REDIRECT_LOGFILE"
+    echo "Check $REDIRECT_LOGFILE for more details."
     echo "#############################################"
     echo ""
 }
@@ -42,11 +41,7 @@ PIXI_ENV_DIR="$SCRIPT_ROOT/stretch_venv/.pixi/envs/default"
 if [ ! -d "$PIXI_ENV_DIR" ]; then
     echo "ERROR: The unified environment $PIXI_ENV_DIR does not exist."
     echo "Please run the setup script to generate it:"
-    if [ -d "$HOME/stretch4_install" ]; then
-        echo "    ~/stretch4_install/stretch_venv/setup_venv.sh"
-    else
-        echo "    ~/stretch_install/stretch_venv/setup_venv.sh"
-    fi
+    echo "    $SCRIPT_ROOT/stretch_venv/setup_venv.sh"
     echo "Exiting."
     exit 1
 fi
@@ -89,10 +84,10 @@ fi
 echo "Apt update..."
 sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Ensuring build tools are present (required for depthai-core/vcpkg)..."
-sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
+sudo apt-get --yes install build-essential ninja-build libopencv-dev liblttng-ust-dev liburcu-dev >> $REDIRECT_LOGFILE
 
 echo "Cleaning pixi cache..."
-pixi clean cache -y --conda --pypi >> $REDIRECT_LOGFILE 2>&1 || true
+pixi clean &>> $REDIRECT_LOGFILE || true
 
 . /etc/hello-robot/hello-robot.conf
 export HELLO_FLEET_ID=$HELLO_FLEET_ID
@@ -124,13 +119,18 @@ echo "Cloning Luxonis depthai submodules..."
 cd $AMENT_WSDIR/src/depthai-core
 git submodule update --init --recursive &>> $REDIRECT_LOGFILE
 
-echo "Fetch ROS packages' dependencies (this might take a while)..."
+echo "Fetch ROS packages' dependencies (integrating with Pixi)..."
 cd $AMENT_WSDIR/
-export PIP_BREAK_SYSTEM_PACKAGES=1
+
+# 1. Inform rosdep about our virtual environment
 export ROS_PYTHON_VERSION=3
-echo "--- Simulating rosdep install to identify pip dependencies ---" >> $REDIRECT_LOGFILE
-rosdep install --rosdistro=jazzy -iy --from-paths src --skip-keys "depthai python3-depthai-pip open3d transforms3d python3-transforms3d python-transforms3d-pip opencv libopencv-dev python3-opencv" --simulate >> $REDIRECT_LOGFILE 2>&1
-rosdep install --rosdistro=jazzy -iy --from-paths src --skip-keys "depthai python3-depthai-pip open3d transforms3d python3-transforms3d python-transforms3d-pip opencv libopencv-dev python3-opencv" &>> $REDIRECT_LOGFILE
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
+# 2. Define keys that we want Pixi to handle or that are known to conflict
+PIXI_KEYS="python3-numpy python3-lark python3-empy"
+
+echo "Running rosdep install (skipping Pixi-managed keys)..."
+rosdep install --rosdistro=jazzy -iy --from-paths src --skip-keys "$PIXI_KEYS" &>> $REDIRECT_LOGFILE
 
 echo "Install web interface dependencies..."
 cd $AMENT_WSDIR/src/stretch4_web_teleop
@@ -153,8 +153,21 @@ echo keyfile=${HELLO_FLEET_ID}+6-key.pem >> .env
 cd $AMENT_WSDIR/
 
 echo "Compile the workspace (this might take a while)..."
-export MAKEFLAGS="-j 4" # the NUC cannot handle the memory intensive build of depthai_core, this and --executor sequential are the best config for getting a successful build.
-colcon build --symlink-install --executor sequential &>> $REDIRECT_LOGFILE
+export MAKEFLAGS="-j 4"
+export PATH="$PIXI_ENV_DIR/bin:$PATH"
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+# Let's find the exact site-packages path for the pixi environment
+PIXI_SITE_PACKAGES=$(~/.pixi/bin/pixi run --manifest-path ~/stretch4_install/stretch_venv/pyproject.toml python -c "import site; print(site.getsitepackages()[0])")
+# Bridge both ROS and System dist-packages, but KEEP PIXI AT THE FRONT to avoid setuptools bugs
+export PYTHONPATH="$PIXI_SITE_PACKAGES:/opt/ros/jazzy/lib/python3.12/site-packages:/usr/lib/python3/dist-packages:$PYTHONPATH"
+export COLCON_DEBIAN_PYTHON_INSTALL_LAYOUT=off
+colcon build --executor sequential \
+  --cmake-args \
+    -DCMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake;/usr;$PIXI_ENV_DIR" \
+    -DCMAKE_C_COMPILER="/usr/bin/gcc" \
+    -DCMAKE_CXX_COMPILER="/usr/bin/g++" \
+    -DCMAKE_MAKE_PROGRAM="/usr/bin/make"
 unset MAKEFLAGS
 
 echo "Source setup.bash file..."

@@ -79,8 +79,7 @@ update_repos() {
     echo "--- Updating Local Repositories ---"
 
     # Activate unified environment if present
-    SCRIPT_ROOT="$(dirname "$(readlink -f "$0")")"
-    PIXI_ENV_DIR="$SCRIPT_ROOT/stretch_venv/.pixi/envs/default"
+    PIXI_ENV_DIR="$HOME/stretch_install/stretch_venv/.pixi/envs/default"
     if [ -d "$PIXI_ENV_DIR" ]; then
         export PATH="$PIXI_ENV_DIR/bin:$PATH"
         export CONDA_PREFIX="$PIXI_ENV_DIR"
@@ -90,7 +89,7 @@ update_repos() {
     fi
 
     # Update the pixi environment dependencies if the repo configuration changed
-    if [ -d "$SCRIPT_ROOT/stretch_venv" ]; then
+    if [ -d "$HOME/stretch_install/stretch_venv" ]; then
         echo " -> Updating pixi unified environment dependencies..."
         export PATH="${HOME}/.pixi/bin:${PATH}"
         SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -183,8 +182,8 @@ update_repos() {
 
         # Run build/install commands based on the repository
         if [ "$repo_name" = "stretch4_body" ]; then
-            echo "    -> Running: pixi run --manifest-path $HOME/stretch_install/stretch_venv/pyproject.toml pip install -e ./src"
-            if ! (cd "$repo_path" && pixi run --manifest-path $HOME/stretch_install/stretch_venv/pyproject.toml pip install -e ./src); then
+            echo "    -> Running: pip install -e ./src"
+            if ! (cd "$repo_path" && pip install -e ./src); then
                 echo "    [!] ERROR: pip install failed for $repo_name"
                 FAILED_REPOS+=("$repo_name (pip install failed)")
                 repo_failed=1
@@ -210,8 +209,8 @@ update_repos() {
         else
             # Check for standard Python packaging files before running pip install
             if [ -f "$repo_path/setup.py" ] || [ -f "$repo_path/pyproject.toml" ]; then
-                echo "    -> Running: pixi run --manifest-path $HOME/stretch_install/stretch_venv/pyproject.toml pip install -e ."
-                if ! (cd "$repo_path" && pixi run --manifest-path $HOME/stretch_install/stretch_venv/pyproject.toml pip install -e .); then
+                echo "    -> Running: pip install -e ."
+                if ! (cd "$repo_path" && pip install -e .); then
                     echo "    [!] ERROR: pip install failed for $repo_name"
                     FAILED_REPOS+=("$repo_name (pip install failed)")
                     repo_failed=1
