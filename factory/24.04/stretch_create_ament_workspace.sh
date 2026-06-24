@@ -29,14 +29,16 @@ function on_failure {
     echo "FAILURE. UPDATING ROS WORKSPACE DID NOT COMPLETE."
     echo "Failed at line: $failed_line"
     echo "Failed command: $failed_command"
-    echo "Check $REDIRECT_LOGFILE for more details."
+    echo "Last 20 lines of $REDIRECT_LOGFILE:"
+    tail -n 20 "$REDIRECT_LOGFILE"
     echo "#############################################"
     echo ""
 }
 
 trap 'on_failure $LINENO "$BASH_COMMAND"' ERR
 
-PIXI_ENV_DIR="$HOME/stretch_install/stretch_venv/.pixi/envs/default"
+SCRIPT_ROOT="$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")"
+PIXI_ENV_DIR="$SCRIPT_ROOT/stretch_venv/.pixi/envs/default"
 if [ ! -d "$PIXI_ENV_DIR" ]; then
     echo "ERROR: The unified environment $PIXI_ENV_DIR does not exist."
     echo "Please run the setup script to generate it:"
@@ -90,7 +92,7 @@ echo "Ensuring build tools are present (required for depthai-core/vcpkg)..."
 sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
 
 echo "Cleaning pixi cache..."
-pixi clean --all >> $REDIRECT_LOGFILE || true
+pixi clean cache -y --conda --pypi >> $REDIRECT_LOGFILE 2>&1 || true
 
 . /etc/hello-robot/hello-robot.conf
 export HELLO_FLEET_ID=$HELLO_FLEET_ID
@@ -124,9 +126,11 @@ git submodule update --init --recursive &>> $REDIRECT_LOGFILE
 
 echo "Fetch ROS packages' dependencies (this might take a while)..."
 cd $AMENT_WSDIR/
-# The rosdep flags below have been chosen very carefully. Please review the docs before changing them.
-# https://docs.ros.org/en/independent/api/rosdep/html/commands.html
-rosdep install --rosdistro=jazzy -iy --from-paths src &>> $REDIRECT_LOGFILE
+export PIP_BREAK_SYSTEM_PACKAGES=1
+export ROS_PYTHON_VERSION=3
+echo "--- Simulating rosdep install to identify pip dependencies ---" >> $REDIRECT_LOGFILE
+rosdep install --rosdistro=jazzy -iy --from-paths src --skip-keys "depthai python3-depthai-pip open3d transforms3d python3-transforms3d python-transforms3d-pip opencv libopencv-dev python3-opencv" --simulate >> $REDIRECT_LOGFILE 2>&1
+rosdep install --rosdistro=jazzy -iy --from-paths src --skip-keys "depthai python3-depthai-pip open3d transforms3d python3-transforms3d python-transforms3d-pip opencv libopencv-dev python3-opencv" &>> $REDIRECT_LOGFILE
 
 echo "Install web interface dependencies..."
 cd $AMENT_WSDIR/src/stretch4_web_teleop
