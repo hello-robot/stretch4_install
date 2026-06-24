@@ -23,11 +23,10 @@ compilers = "*"
 pkg-config = "*"
 ccache = "*"
 pip = "*"
-transforms3d = "*"
-opencv = "*"
-open3d = "*"
-libusb = "*"
-libgl = "*"
+make = "*"
+numpy = "*"
+lark = "*"
+empy = "3.3.4"
 
 [tool.pixi.pypi-dependencies]
 stretch4-venv = { path = ".", editable = true }
