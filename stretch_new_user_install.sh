@@ -195,6 +195,9 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch Flying Gripper"
     python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
 
+    echo "Install Stretch Pyhesai Wrapper"
+    python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
+
     echo "Install Stretch4 Body"
     python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
 
