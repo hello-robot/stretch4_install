@@ -36,6 +36,23 @@ function on_failure {
 
 trap 'on_failure $LINENO "$BASH_COMMAND"' ERR
 
+SCRIPT_ROOT="$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")"
+PIXI_ENV_DIR="$SCRIPT_ROOT/stretch_venv/.pixi/envs/default"
+if [ ! -d "$PIXI_ENV_DIR" ]; then
+    echo "ERROR: The unified environment $PIXI_ENV_DIR does not exist."
+    echo "Please run the setup script to generate it:"
+    echo "    $SCRIPT_ROOT/stretch_venv/setup_venv.sh"
+    echo "Exiting."
+    exit 1
+fi
+
+# Source Pixi Environment
+export PATH="$PIXI_ENV_DIR/bin:$PATH"
+export CONDA_PREFIX="$PIXI_ENV_DIR"
+for f in "$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
+    if [ -f "$f" ]; then source "$f"; fi
+done
+
 echo "###########################################"
 echo "CREATING JAZZY AMENT WORKSPACE at $AMENT_WSDIR"
 echo "###########################################"
@@ -67,13 +84,11 @@ fi
 echo "Apt update..."
 sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Ensuring build tools are present (required for depthai-core/vcpkg)..."
-sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
+sudo apt-get --yes install build-essential ninja-build libopencv-dev liblttng-ust-dev liburcu-dev >> $REDIRECT_LOGFILE
 
-echo "Purging pip cache..."
-export PIP_BREAK_SYSTEM_PACKAGES=1
-pip3 cache purge &>> $REDIRECT_LOGFILE
+echo "Cleaning pixi cache..."
+pixi clean &>> $REDIRECT_LOGFILE || true
 
-export PATH=${PATH}:~/.local/bin
 . /etc/hello-robot/hello-robot.conf
 export HELLO_FLEET_ID=$HELLO_FLEET_ID
 export HELLO_FLEET_PATH=${HOME}/stretch_user
@@ -104,11 +119,18 @@ echo "Cloning Luxonis depthai submodules..."
 cd $AMENT_WSDIR/src/depthai-core
 git submodule update --init --recursive &>> $REDIRECT_LOGFILE
 
-echo "Fetch ROS packages' dependencies (this might take a while)..."
+echo "Fetch ROS packages' dependencies (integrating with Pixi)..."
 cd $AMENT_WSDIR/
-# The rosdep flags below have been chosen very carefully. Please review the docs before changing them.
-# https://docs.ros.org/en/independent/api/rosdep/html/commands.html
-rosdep install --rosdistro=jazzy -iy --from-paths src &>> $REDIRECT_LOGFILE
+
+# 1. Inform rosdep about our virtual environment
+export ROS_PYTHON_VERSION=3
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
+# 2. Define keys that we want Pixi to handle or that are known to conflict
+PIXI_KEYS="python3-numpy python3-lark python3-empy"
+
+echo "Running rosdep install (skipping Pixi-managed keys)..."
+rosdep install --rosdistro=jazzy -iy --from-paths src --skip-keys "$PIXI_KEYS" &>> $REDIRECT_LOGFILE
 
 echo "Install web interface dependencies..."
 cd $AMENT_WSDIR/src/stretch4_web_teleop
@@ -131,9 +153,21 @@ echo keyfile=${HELLO_FLEET_ID}+6-key.pem >> .env
 cd $AMENT_WSDIR/
 
 echo "Compile the workspace (this might take a while)..."
-pip3 uninstall -y nose &>> $REDIRECT_LOGFILE
-export MAKEFLAGS="-j 4" # the NUC cannot handle the memory intensive build of depthai_core, this and --executor sequential are the best config for getting a successful build.
-colcon build --symlink-install --executor sequential &>> $REDIRECT_LOGFILE
+export MAKEFLAGS="-j 4"
+export PATH="$PIXI_ENV_DIR/bin:$PATH"
+export CC=/usr/bin/gcc
+export CXX=/usr/bin/g++
+# Let's find the exact site-packages path for the pixi environment
+PIXI_SITE_PACKAGES=$(~/.pixi/bin/pixi run --manifest-path ~/stretch4_install/stretch_venv/pyproject.toml python -c "import site; print(site.getsitepackages()[0])")
+# Bridge both ROS and System dist-packages, but KEEP PIXI AT THE FRONT to avoid setuptools bugs
+export PYTHONPATH="$PIXI_SITE_PACKAGES:/opt/ros/jazzy/lib/python3.12/site-packages:/usr/lib/python3/dist-packages:$PYTHONPATH"
+export COLCON_DEBIAN_PYTHON_INSTALL_LAYOUT=off
+colcon build --executor sequential \
+  --cmake-args \
+    -DCMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake;/usr;$PIXI_ENV_DIR" \
+    -DCMAKE_C_COMPILER="/usr/bin/gcc" \
+    -DCMAKE_CXX_COMPILER="/usr/bin/g++" \
+    -DCMAKE_MAKE_PROGRAM="/usr/bin/make"
 unset MAKEFLAGS
 
 echo "Source setup.bash file..."
@@ -141,9 +175,6 @@ source $AMENT_WSDIR/install/setup.bash
 echo "Updating port privledges..."
 sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80 &>> $REDIRECT_LOGFILE
 echo net.ipv4.ip_unprivileged_port_start=80 | sudo tee --append /etc/sysctl.d/99-sysctl.conf &>> $REDIRECT_LOGFILE
-echo "Update ~/.bashrc dotfile to source workspace..."
-echo "source $AMENT_WSDIR/install/setup.bash" >> ~/.bashrc
-echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
 
 
 echo "Installing Zenoh router system service..."

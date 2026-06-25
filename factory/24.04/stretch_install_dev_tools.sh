@@ -7,6 +7,20 @@ if getopts ":l:" opt && [[ $opt == "l" && -d $OPTARG ]]; then
 fi
 REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_install_dev_tools.`date '+%Y%m%d%H%M'`_redirected.txt"
 
+if [ ! -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
+    echo "ERROR: The virtual environment ~/stretch_user/stretch_venv does not exist."
+    echo "Please run the setup script to generate it:"
+    if [ -d "$HOME/stretch4_install" ]; then
+        echo "    ~/stretch4_install/stretch_venv/setup_venv.sh"
+    else
+        echo "    ~/stretch_install/stretch_venv/setup_venv.sh"
+    fi
+    echo "Exiting."
+    exit 1
+fi
+
+source "$HOME/stretch_user/stretch_venv/bin/activate"
+
 echo "#############################################"
 echo "INSTALLATION OF DEV TOOLS FOR HELLO ROBOT INTERNAL PRODUCTION"
 echo "#############################################"
@@ -32,12 +46,12 @@ echo "Install VS Code"
 sudo snap install code --classic >> $REDIRECT_LOGFILE
 
 echo "Install tools for system QC and bringup"
-export PIP_BREAK_SYSTEM_PACKAGES=1
-pip3 install -q --no-warn-script-location twine &>> $REDIRECT_LOGFILE
-pip3 install -q --no-warn-script-location gspread &>> $REDIRECT_LOGFILE
-pip3 install -q --no-warn-script-location gspread-formatting &>> $REDIRECT_LOGFILE
-pip3 install -q --no-warn-script-location oauth2client rsa==3.4 &>> $REDIRECT_LOGFILE
-pip3 install -q --no-warn-script-location mkdocs mkdocs-material mkdocstrings==0.17.0 pytkdocs[numpy-style] jinja2==3.0.3 &>> $REDIRECT_LOGFILE
+export PATH="${HOME}/.local/bin:${PATH}"
+uv pip install -q twine &>> $REDIRECT_LOGFILE
+uv pip install -q gspread &>> $REDIRECT_LOGFILE
+uv pip install -q gspread-formatting &>> $REDIRECT_LOGFILE
+uv pip install -q oauth2client rsa==3.4 &>> $REDIRECT_LOGFILE
+uv pip install -q mkdocs mkdocs-material mkdocstrings==0.17.0 pytkdocs[numpy-style] jinja2==3.0.3 &>> $REDIRECT_LOGFILE
 
 echo "Cloning repos"
 cd ~/repos/
@@ -58,4 +72,4 @@ git clone https://github.com/hello-robot/stretch_production_data_ii.git >> $REDI
 
 echo "Install stretch_production_tools"
 cd stretch_production_tools_ii/python
-pip3 install -e . >> $REDIRECT_LOGFILE
+uv pip install -e . >> $REDIRECT_LOGFILE

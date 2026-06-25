@@ -99,14 +99,15 @@ else
     echo "######################" >> ~/.bashrc
     echo "export HELLO_FLEET_PATH=${HOME}/stretch_user" >> ~/.bashrc
     echo "export HELLO_FLEET_ID=${HELLO_FLEET_ID}">> ~/.bashrc
-    echo "export PATH=\${PATH}:~/.local/bin" >> ~/.bashrc
+    echo "export PATH=\${PATH}:~/.local/bin:~/.pixi/bin" >> ~/.bashrc
     echo "export LRS_LOG_LEVEL=None #Debug" >> ~/.bashrc
     echo "export PYTHONWARNINGS='ignore:setup.py install is deprecated,ignore:Invalid dash-separated options,ignore:pkg_resources is deprecated as an API,ignore:Usage of dash-separated'" >> ~/.bashrc
     if [[ $factory_osdir = "24.04" ]]; then
-        echo "export PIP_BREAK_SYSTEM_PACKAGES=1" >> ~/.bashrc
         echo "export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> ~/.bashrc
-        echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
     fi
+
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    bash "$SCRIPT_DIR/stretch_venv/update_bashrc.sh"
 fi
 
 
@@ -157,8 +158,9 @@ chmod +x ~/.config/autostart/stretch_gamepad_teleop.desktop
 echo "Updating media assets..."
 sudo cp $HOME/stretch4_install/factory/$factory_osdir/stretch_about.png /etc/hello-robot
 
-echo "Install uv"
-curl -LsSf https://astral.sh/uv/install.sh | sh &>> $REDIRECT_LOGFILE
+echo "Install pixi"
+curl -fsSL https://pixi.sh/install.sh | sh &>> $REDIRECT_LOGFILE
+export PATH="${HOME}/.pixi/bin:${PATH}"
 
 echo "Adding user to the dialout group to access Arduino..."
 sudo adduser $USER dialout >> $REDIRECT_LOGFILE
@@ -180,19 +182,10 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Disabling audio suppression"
     python3 $HOME/stretch4_install/factory/$factory_osdir/hello_robot_audio_disable_suspension.py &>> $REDIRECT_LOGFILE
     
-    export PIP_BREAK_SYSTEM_PACKAGES=1
     echo "###########################################"
-    echo "INSTALLATION OF USER LEVEL PIP3 PACKAGES"
+    echo "CREATING AND SYNCHRONIZING STRETCH PYTHON VIRTUAL ENVIRONMENT"
     echo "###########################################"
-    echo "Upgrade pip3"
-    python3 -m pip -q install --no-warn-script-location --user --upgrade pip &>> $REDIRECT_LOGFILE
-    echo "Clear pip cache"
-    python3 -m pip cache purge &>> $REDIRECT_LOGFILE
-    
-    echo "Install Stretch4 URDF"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch Flying Gripper"
+    # Clone repositories that setup_venv.sh expects to reinstall in editable mode
     cd ~/repos
     if [ ! -d "stretch4_flying_gripper" ]; then
         git clone https://github.com/hello-robot/stretch4_flying_gripper.git &>> $REDIRECT_LOGFILE
@@ -200,10 +193,10 @@ if [[ $factory_osdir = "24.04" ]]; then
     cd ~/repos/stretch4_flying_gripper
     git checkout main &>> $REDIRECT_LOGFILE
     git pull &>> $REDIRECT_LOGFILE
-    python3 -m pip install -e . &>> $REDIRECT_LOGFILE
 
-    echo "Install Stretch4 Body"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
+    # Call the dedicated setup_venv.sh script
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    bash "$SCRIPT_DIR/stretch_venv/setup_venv.sh" &>> $REDIRECT_LOGFILE
 
     # # TODO:
     # echo "Install Stretch Tray"

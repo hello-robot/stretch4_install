@@ -1,0 +1,33 @@
+[project]
+name = "stretch4-venv"
+version = "0.1.0"
+description = "Encapsulated python environment for Stretch 4"
+requires-python = ">=3.12"
+dependencies = [
+    "hello-robot-stretch4-urdf",
+    "hello-robot-stretch4-body",
+]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.system-requirements]
+libc = "2.39"
+
+[tool.pixi.dependencies]
+python = "3.12.*"
+cmake = "*"
+ninja = "*"
+compilers = "*"
+pkg-config = "*"
+ccache = "*"
+pip = "*"
+make = "*"
+numpy = "*"
+lark = "*"
+empy = "3.3.4"
+
+[tool.pixi.pypi-dependencies]
+stretch4-venv = { path = ".", editable = true }
+colcon-common-extensions = "*"
