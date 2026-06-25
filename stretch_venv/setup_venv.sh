@@ -23,7 +23,7 @@ fi
 # 2. Create the virtual environment directory
 echo "Creating virtual environment at ~/stretch_user/stretch_venv..."
 mkdir -p ~/stretch_user
-uv venv ~/stretch_user/stretch_venv --system-site-packages
+uv venv ~/stretch_user/stretch_venv --system-site-packages --seed --clear
 
 # 3. Synchronize dependencies using project config
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
@@ -35,12 +35,12 @@ uv sync --frozen
 # 4. Install local development repositories in editable mode if they exist
 if [ -d "$HOME/repos/stretch4_flying_gripper" ]; then
     echo "Reinstalling stretch4_flying_gripper in editable mode..."
-    ~/stretch_user/stretch_venv/bin/pip install -e "$HOME/repos/stretch4_flying_gripper"
+    uv pip install -p "$UV_PROJECT_ENVIRONMENT" -e "$HOME/repos/stretch4_flying_gripper"
 fi
 
 if [ -d "$HOME/repos/stretch_tray" ]; then
     echo "Reinstalling stretch_tray in editable mode..."
-    ~/stretch_user/stretch_venv/bin/pip install -e "$HOME/repos/stretch_tray"
+    uv pip install -p "$UV_PROJECT_ENVIRONMENT" -e "$HOME/repos/stretch_tray"
 fi
 
 echo "===================================================="

@@ -204,7 +204,7 @@ if [[ $factory_osdir = "24.04" ]]; then
     # cd ~/repos/stretch_tray
     # git checkout main &>> $REDIRECT_LOGFILE
     # git pull &>> $REDIRECT_LOGFILE
-    # python3 -m pip install -e . &>> $REDIRECT_LOGFILE
+    # uv pip install -e . &>> $REDIRECT_LOGFILE
 
     # # TODO: doesn't work in a fresh install currently, needs investigation
     # echo "###########################################"
