@@ -172,6 +172,8 @@ echo "Adding user to the video group..."
 sudo adduser $USER video >> $REDIRECT_LOGFILE
 echo "Adding user to the render group..."
 sudo adduser $USER render >> $REDIRECT_LOGFILE
+echo "Adding user to the users group..."
+sudo adduser $USER users >> $REDIRECT_LOGFILE
 echo ""
 
 if [[ $factory_osdir = "24.04" ]]; then
