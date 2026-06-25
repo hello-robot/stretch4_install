@@ -193,14 +193,7 @@ if [[ $factory_osdir = "24.04" ]]; then
     python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch Flying Gripper"
-    cd ~/repos
-    if [ ! -d "stretch4_flying_gripper" ]; then
-        git clone https://github.com/hello-robot/stretch4_flying_gripper.git &>> $REDIRECT_LOGFILE
-    fi
-    cd ~/repos/stretch4_flying_gripper
-    git checkout main &>> $REDIRECT_LOGFILE
-    git pull &>> $REDIRECT_LOGFILE
-    python3 -m pip install -e . &>> $REDIRECT_LOGFILE
+    python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch4 Body"
     python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
