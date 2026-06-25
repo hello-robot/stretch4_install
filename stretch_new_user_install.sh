@@ -196,14 +196,7 @@ if [[ $factory_osdir = "24.04" ]]; then
     python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch Pyhesai Wrapper"
-    cd ~/repos
-    if [ ! -d "stretch4_pyhesai_wrapper" ]; then
-        git clone https://github.com/hello-robot/stretch4_pyhesai_wrapper.git &>> $REDIRECT_LOGFILE
-    fi
-    cd ~/repos/stretch4_pyhesai_wrapper
-    git checkout main &>> $REDIRECT_LOGFILE
-    git pull &>> $REDIRECT_LOGFILE
-    python3 -m pip install -e . &>> $REDIRECT_LOGFILE
+    python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch4 Body"
     python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
