@@ -10,6 +10,7 @@
 #   2.  Clear git credentials, PAT, and identity
 #   3.  Clear GitHub CLI (gh) auth credentials
 #   4.  Remove Antigravity (Gemini) credentials and data
+#       (~/.gemini and ~/.antigravity-ide)
 #   5.  Remove VS Code credentials and configuration
 #   6.  Remove Chrome profile data (full)
 #   7.  Remove Firefox profile data (full)
@@ -52,7 +53,7 @@ echo "This script will:"
 echo "  [ 1] Push stretch_production_data_ii and stretch_fleet_ii to remote"
 echo "  [ 2] Remove all git credentials, PAT, and SSH keys"
 echo "  [ 3] Clear GitHub CLI (gh) auth credentials"
-echo "  [ 4] Remove Antigravity (Gemini) credentials and data"
+echo "  [ 4] Remove Antigravity (Gemini) credentials and data (~/.gemini, ~/.antigravity-ide)"
 echo "  [ 5] Remove VS Code credentials and configuration"
 echo "  [ 6] Remove Chrome profile data (full)"
 echo "  [ 7] Remove Firefox profile data (full)"
@@ -60,7 +61,7 @@ echo "  [ 8] Clear ~/Pictures, ~/Downloads, ~/Documents"
 echo "  [ 9] Remove the ROS domain ID assignment"
 echo "  [10] Remove Sunshine remote desktop config"
 echo "  [11] Uninstall production tools Python package"
-echo "  [12] Remove production repos in ~/repos (keep stretch4_body, stretch4_urdf, stretch4_flying_gripper)"
+echo "  [12] Remove production repos in ~/repos (keep stretch4_body, stretch4_urdf, stretch4_flying_gripper, stretch4_pyhesai_wrapper)"
 echo ""
 confirm "Are you sure you want to continue?" || { echo "Exiting."; exit 0; }
 
@@ -90,7 +91,7 @@ push_repo() {
     output=$(cd "$repo_path" \
         && git config http.postBuffer 524288000 \
         && git add -A \
-        && git commit -m "cleanup done from stretch4_install, ${ROBOT_ID}" --allow-empty \
+        && git commit -m "cleanup: final data push, ${ROBOT_ID} ready to ship" --allow-empty \
         && git push 2>&1)
     exit_code=$?
 
@@ -174,10 +175,12 @@ fi
 section "Step 4 / 12 — Removing Antigravity / Gemini credentials"
 
 ANTI_CMD="rm -rf ~/.gemini/ 2>/dev/null || true"
+# Also remove Antigravity IDE data directory (conversation transcripts, brain data, credentials)
+ANTI_CMD="$ANTI_CMD; rm -rf ~/.antigravity-ide/ 2>/dev/null || true"
 # Also remove any Google application default credentials
 ANTI_CMD="$ANTI_CMD; rm -rf ~/.config/gcloud/ 2>/dev/null || true"
 
-if ! run_step "[4/12] Remove Antigravity credentials" "$ANTI_CMD"; then
+if ! run_step "[4/12] Remove Antigravity credentials (~/.gemini + ~/.antigravity-ide)" "$ANTI_CMD"; then
     errors+=("[4/12] Remove Antigravity credentials")
 fi
 
@@ -284,6 +287,7 @@ REPO_DEL_CMD="find ~/repos -maxdepth 1 -mindepth 1"
 REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_body'"
 REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_urdf'"
 REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_flying_gripper'"
+REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_pyhesai_wrapper'"
 REPO_DEL_CMD="$REPO_DEL_CMD -exec rm -rf {} +"
 
 if ! run_step "[12/12] Remove production repos in ~/repos" "$REPO_DEL_CMD"; then
