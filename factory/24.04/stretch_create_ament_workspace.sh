@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 export COLCON_EXTENSION_BLOCKLIST=colcon_core.event_handler.desktop_notification
+SCRIPT_DIR=$(cd $(dirname "$0") && pwd)
 
 
 REDIRECT_LOGDIR="$HOME/stretch_user/log"
@@ -147,7 +148,7 @@ echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
 
 
 echo "Installing Zenoh router system service..."
-sudo cp "$(dirname "$0")/stretch-ros2-zenoh-router.service" /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/stretch-ros2-zenoh-router.service" /etc/systemd/system/
 sudo sed -i "s|__USER__|$USER|g" /etc/systemd/system/stretch-ros2-zenoh-router.service
 sudo sed -i "s|__USER_HOME__|$HOME|g" /etc/systemd/system/stretch-ros2-zenoh-router.service
 
