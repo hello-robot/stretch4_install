@@ -17,7 +17,7 @@
 #   8.  Clear standard user directories content
 #   9.  Remove ROS domain ID assignment
 #  10.  Remove Sunshine remote desktop config
-#  11.  Uninstall production tools Python package
+#  11.  Remove RustDesk remote desktop config and history
 #  12.  Remove production repos in ~/repos (preserve stretch4 model repos)
 #
 # Run from the machine you used for bringup (robot NUC).
@@ -60,7 +60,7 @@ echo "  [ 7] Remove Firefox profile data (full)"
 echo "  [ 8] Clear ~/Pictures, ~/Downloads, ~/Documents"
 echo "  [ 9] Remove the ROS domain ID assignment"
 echo "  [10] Remove Sunshine remote desktop config"
-echo "  [11] Uninstall production tools Python package"
+echo "  [11] Remove RustDesk remote desktop config and history"
 echo "  [12] Remove production repos in ~/repos (keep stretch4_body, stretch4_urdf, stretch4_flying_gripper, stretch4_pyhesai_wrapper)"
 echo ""
 confirm "Are you sure you want to continue?" || { echo "Exiting."; exit 0; }
@@ -111,8 +111,9 @@ push_repo() {
             echo "  │  To fix before re-running this script:                      │"
             echo "  │    1. Generate a new PAT (repo scope):                      │"
             echo "  │       https://github.com/settings/tokens/new               │"
-            echo "  │    2. Store it:  gh auth login                              │"
-            echo "  │       (or: git credential approve with the new token)       │"
+            echo "  │    2. Clear old helper & login:                             │"
+            echo "  │       git config --global --unset credential.helper         │"
+            echo "  │       gh auth login                                         │"
             echo "  │    3. Test:  git -C $repo_path push --dry-run               │"
             echo "  │    4. Re-run this script once the push succeeds.            │"
             echo "  └─────────────────────────────────────────────────────────────┘"
@@ -257,21 +258,17 @@ else
 fi
 
 # -------------------------------------------------------
-# Step 10: Remove Sunshine remote desktop config
+# Step 11: Remove RustDesk remote desktop config and history
 # -------------------------------------------------------
-section "Step 10 / 12 — Removing Sunshine config"
+section "Step 11 / 13 — Removing RustDesk config"
 
-if ! run_step "[10/12] Remove Sunshine config" "rm -rf ~/.config/sunshine/ 2>/dev/null || true"; then
-    errors+=("[10/12] Remove Sunshine config")
-fi
+RUSTDESK_CMD="sudo systemctl stop rustdesk 2>/dev/null || true"
+RUSTDESK_CMD="$RUSTDESK_CMD; pkill -u \"\$USER\" rustdesk 2>/dev/null || true"
+RUSTDESK_CMD="$RUSTDESK_CMD; rm -rf \"\$HOME/.config/rustdesk/\" 2>/dev/null || true"
+RUSTDESK_CMD="$RUSTDESK_CMD; sudo rm -rf /root/.config/rustdesk/ 2>/dev/null || true"
 
-# -------------------------------------------------------
-# Step 11: Uninstall production tools Python package
-# -------------------------------------------------------
-section "Step 11 / 12 — Uninstalling production tools"
-
-if ! run_step "[11/12] Uninstall production tools" "pip3 uninstall -y hello-robot-stretch-production_tools 2>/dev/null || true; pip3 uninstall -y hello-robot-stretch-production-tools-ii 2>/dev/null || true"; then
-    errors+=("[11/12] Uninstall production tools")
+if ! run_step "[11/13] Remove RustDesk config" "$RUSTDESK_CMD"; then
+    errors+=("[11/13] Remove RustDesk config")
 fi
 
 # -------------------------------------------------------
@@ -279,7 +276,7 @@ fi
 #   Preserved: stretch4_body, stretch4_urdf, stretch4_flying_gripper
 #   Deleted:   everything else (incl. stretch_production_data_ii,
 #              stretch_production_tools_ii, stretch_firmware_ii, etc.)
-#   Note:      ~/stretch_install is intentionally left untouched.
+#   Note:      ~/stretch4_install is intentionally left untouched.
 # -------------------------------------------------------
 section "Step 12 / 12 — Removing production repos"
 
