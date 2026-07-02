@@ -199,14 +199,7 @@ if [[ $factory_osdir = "24.04" ]]; then
     python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch 4 Tray"
-    cd ~/repos
-    if [ ! -d "stretch4_tray" ]; then
-        git clone https://github.com/hello-robot/stretch4_tray.git &>> $REDIRECT_LOGFILE
-    fi
-    cd ~/repos/stretch4_tray
-    git checkout main &>> $REDIRECT_LOGFILE
-    git pull &>> $REDIRECT_LOGFILE
-    python3 -m pip install -e . &>> $REDIRECT_LOGFILE
+    python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
 
     # # TODO: doesn't work in a fresh install currently, needs investigation
     # echo "###########################################"
