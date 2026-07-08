@@ -67,7 +67,9 @@ if [ "$1" == "--in-terminal" ]; then
     exit 0
 fi
 
-if [ "$USER" = "$(logname 2>/dev/null || echo "$USER")" ]; then
+# Detect if running in a non-interactive/Docker environment or if logname fails
+logged_in_user=$(logname 2>/dev/null || echo "")
+if [ -n "$logged_in_user" ] && [ "$USER" = "$logged_in_user" ]; then
     run_install true
 else
     run_install false
