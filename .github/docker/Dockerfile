@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     iputils-ping \
     expect \
+    gcc \
     zip \
     software-properties-common \
     apt-utils \
@@ -47,6 +48,13 @@ RUN mkdir -p /etc/udev/rules.d /etc/modprobe.d /etc/apt/keyrings /etc/netplan &&
     chmod +x /usr/sbin/netplan && \
     printf '#!/bin/sh\nexit 0\n' > /usr/bin/systemctl && \
     chmod +x /usr/bin/systemctl
+
+# Pre-compile a getlogin spoofing library to prevent crash in non-tty environments (e.g. Docker build)
+RUN echo '#include <stdlib.h>\nchar *getlogin(void) { char *user = getenv("USER"); return user ? user : "hello-robot"; }' > /tmp/spoof_getlogin.c && \
+    gcc -shared -fPIC -o /usr/local/lib/libspoof_getlogin.so /tmp/spoof_getlogin.c && \
+    rm /tmp/spoof_getlogin.c
+
+ENV LD_PRELOAD=/usr/local/lib/libspoof_getlogin.so
 
 # Create a non-root user 'hello-robot' with sudo privileges
 # The installation scripts expect to run as a regular user with sudo access
