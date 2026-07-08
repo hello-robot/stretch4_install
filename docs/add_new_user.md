@@ -34,6 +34,21 @@ Finally, log out and log back in as the new user account. Reboot the robot and r
 stretch_system_check.py
 ```
 
+### Calibration Data Copy
+
+During the installation process, the setup script automatically runs the `stretch_copy_calibration.sh` utility. This utility copies the calibration and robot configuration files from the main `hello-robot` account (specifically from `/home/hello-robot/stretch_user/$HELLO_FLEET_ID`) to the new user's account. This ensures that the new user has access to all current robot calibrations (e.g. stepper calibrations, camera extrinsics) rather than defaulting to factory configuration.
+
+The `stretch_copy_calibration.sh` script supports the following command-line flags:
+- `-s, --source USER` : Source user account to copy calibration from (default: `hello-robot`).
+- `-u, --user USER`   : Target user account to copy calibration to (default: current user).
+- `-f, --force`        : Force the copy to run without prompting the user. If this flag is omitted, the script lists the files to be copied and prompts the user for confirmation.
+
+If you ever need to manually copy or sync the calibration files from the `hello-robot` account to a new user account later, you can run the utility script with `sudo` at any time:
+
+```{.bash .shell-prompt .copy}
+sudo ~/stretch4_install/stretch_copy_calibration.sh -u new_developer_name
+```
+
 Your new user account is now set up successfully!
 
 ## Manually add a new user
