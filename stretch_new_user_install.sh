@@ -37,7 +37,12 @@ if [ -n "$CREATE_USER" ]; then
         sudo useradd -m -s /bin/bash -G sudo "$CREATE_USER"
         
         echo "Please set a password for the new user $CREATE_USER:"
-        sudo passwd "$CREATE_USER"
+        if [ -t 0 ]; then
+            sudo passwd "$CREATE_USER"
+        else
+            echo "Non-interactive environment detected, setting default password for $CREATE_USER..."
+            echo "$CREATE_USER:$CREATE_USER" | sudo chpasswd
+        fi
     fi
     
     echo "Copying stretch4_install to the new user's home directory..."
