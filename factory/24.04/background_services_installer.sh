@@ -16,9 +16,8 @@ run_install() {
     echo "Installing and starting Stretch Body Server daemon service"
     ~/.local/bin/stretch_body_server --daemon
 
-    # # TODO
-    # echo "Installing and starting the Stretch Tray"
-    # ~/.local/bin/stretch_tray_install
+    echo "Installing and starting the Stretch Tray"
+    ~/.local/bin/stretch_tray --install
 }
 
 if [ "$1" == "--auto-startup" ]; then
