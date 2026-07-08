@@ -201,23 +201,22 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch 4 Tray"
     python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
 
-    # # TODO: doesn't work in a fresh install currently, needs investigation
-    # echo "###########################################"
-    # echo "INSTALLING SERVICES"
-    # echo "###########################################"
-    # if [ -z "$IS_SECONDARY_USER_INSTALL" ]; then
-    #     echo "Install the services"
-    #     "$HOME/stretch4_install/factory/$factory_osdir/background_services_installer.sh" &>> $REDIRECT_LOGFILE
-    # else
-    #     echo "========================================================================"
-    #     echo "This installation was run automatically to run on a different user account."
-    #     if [[ $factory_osdir = "24.04" ]]; then
-    #         echo "Configuring automatic service installation on first login."
-    #         echo -e "\n# Run service install once on first login\nbash ~/stretch4_install/factory/24.04/background_services_installer.sh --auto-startup &" >> "$HOME/.bashrc"
-    #     fi
-    #     echo "========================================================================"
-    #     echo ""
-    # fi
+    echo "###########################################"
+    echo "INSTALLING SERVICES"
+    echo "###########################################"
+    if [ -z "$IS_SECONDARY_USER_INSTALL" ]; then
+        echo "Install the services"
+        "$HOME/stretch4_install/factory/$factory_osdir/background_services_installer.sh" &>> $REDIRECT_LOGFILE
+    else
+        echo "========================================================================"
+        echo "This installation was run automatically to run on a different user account."
+        if [[ $factory_osdir = "24.04" ]]; then
+            echo "Configuring automatic service installation on first login."
+            echo -e "\n# Run service install once on first login\nbash ~/stretch4_install/factory/24.04/background_services_installer.sh --auto-startup &" >> "$HOME/.bashrc"
+        fi
+        echo "========================================================================"
+        echo ""
+    fi
 fi
 
 
