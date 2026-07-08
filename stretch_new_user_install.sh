@@ -210,10 +210,8 @@ if [[ $factory_osdir = "24.04" ]]; then
     else
         echo "========================================================================"
         echo "This installation was run automatically to run on a different user account."
-        if [[ $factory_osdir = "24.04" ]]; then
-            echo "Configuring automatic service installation on first login."
-            echo -e "\n# Run service install once on first login\nbash ~/stretch4_install/factory/24.04/background_services_installer.sh --auto-startup &" >> "$HOME/.bashrc"
-        fi
+        echo "Configuring automatic service startup on first login."
+        echo -e "\n# Run service install once on first login\nbash ~/stretch4_install/factory/24.04/background_services_installer.sh --auto-startup &" >> "$HOME/.bashrc"
         echo "========================================================================"
         echo ""
     fi
