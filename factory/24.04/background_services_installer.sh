@@ -13,11 +13,20 @@ run_install() {
     export HELLO_FLEET_ID="${HELLO_FLEET_ID}"
     export HELLO_FLEET_PATH="${HOME}/stretch_user"
 
+    local auto_start="${1:-true}"
+
     echo "Installing and starting Stretch Body Server daemon service"
-    ~/.local/bin/stretch_body_server --daemon
+    if [ "$auto_start" = "false" ]; then
+        ~/.local/bin/stretch_body_server --install_daemon
+    else
+        ~/.local/bin/stretch_body_server --daemon
+    fi
 
     echo "Installing and starting the Stretch Tray"
     ~/.local/bin/stretch_tray --install
+    if [ "$auto_start" = "true" ]; then
+        ~/.local/bin/stretch_tray --restart
+    fi
 }
 
 if [ "$1" == "--auto-startup" ]; then
@@ -37,7 +46,7 @@ if [ "$1" == "--in-terminal" ]; then
     echo "========================================================================"
     echo ""
     
-    if run_install 2>&1 | tee -a "$HOME/stretch_user/log/service_install_redirected.log"; then
+    if run_install true 2>&1 | tee -a "$HOME/stretch_user/log/service_install_redirected.log"; then
         echo "Services installed correctly!"
         echo "Cleaning up auto-startup script from ~/.bashrc..."
         sed -i '/# Run service install once on first login/d' "$HOME/.bashrc"
@@ -58,5 +67,9 @@ if [ "$1" == "--in-terminal" ]; then
     exit 0
 fi
 
-run_install
+if [ "$USER" = "$(logname 2>/dev/null || echo "$USER")" ]; then
+    run_install true
+else
+    run_install false
+fi
 
