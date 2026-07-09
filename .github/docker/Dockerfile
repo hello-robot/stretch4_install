@@ -17,7 +17,7 @@ ENV SETUP_FLEET_ID=${SETUP_FLEET_ID}
 ENV USER=hello-robot
 
 # Install basic dependencies required by the installation scripts
-# Including iputils-ping for network connectivity checks and zip for logs packaging
+# Including systemd and dbus packages for init daemon capability inside Docker
 RUN apt-get update && apt-get install -y \
     sudo \
     git \
@@ -33,10 +33,15 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     apt-utils \
     iproute2 \
+    systemd \
+    systemd-sysv \
+    dbus \
+    dbus-user-session \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-create necessary directories that don't exist by default in basic Docker images
 # Also mock udevadm, update-initramfs, nmcli, and netplan which are not useful inside Docker or fail/warn in container environments
+# Keep track of the real systemctl by backing it up to /usr/bin/systemctl.real before creating the mock
 RUN mkdir -p /etc/udev/rules.d /etc/modprobe.d /etc/apt/keyrings /etc/netplan && \
     printf '#!/bin/sh\nexit 0\n' > /usr/sbin/update-initramfs && \
     chmod +x /usr/sbin/update-initramfs && \
@@ -46,11 +51,13 @@ RUN mkdir -p /etc/udev/rules.d /etc/modprobe.d /etc/apt/keyrings /etc/netplan &&
     chmod +x /usr/bin/nmcli && \
     printf '#!/bin/sh\nexit 0\n' > /usr/sbin/netplan && \
     chmod +x /usr/sbin/netplan && \
+    if [ -f /usr/bin/systemctl ]; then mv /usr/bin/systemctl /usr/bin/systemctl.real; fi && \
     printf '#!/bin/sh\nexit 0\n' > /usr/bin/systemctl && \
     chmod +x /usr/bin/systemctl
 
 # Pre-compile a getlogin spoofing library to prevent crash in non-tty environments (e.g. Docker build)
-RUN echo '#include <stdlib.h>\nchar *getlogin(void) { char *user = getenv("USER"); return user ? user : "hello-robot"; }' > /tmp/spoof_getlogin.c && \
+# The spoofed getlogin() returns NULL if the calling process is 'logname', so logname fails as expected in non-interactive/Docker build environments.
+RUN printf '#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\nchar *getlogin(void) {\n    FILE *f = fopen("/proc/self/comm", "r");\n    if (f) {\n        char comm[64];\n        if (fgets(comm, sizeof(comm), f)) {\n            comm[strcspn(comm, "\\n")] = 0;\n            if (strcmp(comm, "logname") == 0) {\n                fclose(f);\n                return NULL;\n            }\n        }\n        fclose(f);\n    }\n    char *user = getenv("USER");\n    return user ? user : "hello-robot";\n}\n' > /tmp/spoof_getlogin.c && \
     gcc -shared -fPIC -o /usr/local/lib/libspoof_getlogin.so /tmp/spoof_getlogin.c && \
     rm /tmp/spoof_getlogin.c
 
@@ -122,11 +129,25 @@ RUN if [ ! -f /etc/hello-robot/hello-robot.conf ]; then \
     fi && \
     echo "SUCCESS: FLEET_ID properly configured in all required locations"
 
-# Set the default command to display installation success and fleet ID
-CMD ["/bin/bash", "-c", "echo 'Stretch Robot Installation Complete' && \
-     echo 'Fleet ID: '${SETUP_FLEET_ID} && \
-     echo 'Configuration verified in:' && \
-     echo '  - /etc/hello-robot/hello-robot.conf' && \
-     echo '  - /home/hello-robot/stretch_user/'${SETUP_FLEET_ID} && \
-     /bin/bash"]
+# Switch to root to restore systemctl and configure systemd
+USER root
+
+# Restore the real systemctl and set up lingering/systemd configuration
+RUN if [ -f /usr/bin/systemctl.real ]; then \
+        rm -f /usr/bin/systemctl && \
+        mv /usr/bin/systemctl.real /usr/bin/systemctl; \
+    fi && \
+    mkdir -p /var/lib/systemd/linger && \
+    touch /var/lib/systemd/linger/hello-robot && \
+    systemctl mask \
+        systemd-logind.service \
+        getty.target \
+        console-getty.service \
+        sys-fs-fuse-connections.mount
+
+ENV container=docker
+STOPSIGNAL SIGRTMIN+3
+
+# Set the default command to run systemd init daemon
+CMD ["/lib/systemd/systemd", "--log-level=info", "--log-target=journal"]
 
