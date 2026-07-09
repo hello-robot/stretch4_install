@@ -28,8 +28,7 @@ create_release() {
                 remote_url=$(git -C "$repo_path" config --get remote.origin.url)
                 git clone "$remote_url" "$tmp_repo"
             else
-                echo "Error: Local repository $repo_path not found. Cannot determine remote URL to clone."
-                exit 1
+                echo "Warning: Local repository $repo_path not found. Skipping from release."
             fi
         fi
     done
@@ -37,8 +36,22 @@ create_release() {
     # 2. Determine Tag Name (release.month_day_year.revision)
     date_str=$(date +"%b_%d_%y" | tr '[:upper:]' '[:lower:]')
     
-    # Use stretch4_body as the reference point to check for existing revisions today
-    ref_repo="/tmp/stretch_release/stretch4_body"
+    # Use any available cloned repo as the reference point to check for existing revisions today
+    ref_repo=""
+    for repo_path in "${REPOS[@]}"; do
+        repo_name=$(basename "$repo_path")
+        tmp_repo="/tmp/stretch_release/$repo_name"
+        if [ -d "$tmp_repo" ]; then
+            ref_repo="$tmp_repo"
+            break
+        fi
+    done
+
+    if [ -z "$ref_repo" ]; then
+        echo "Error: No cloned repositories found in /tmp/stretch_release. Cannot determine tags."
+        exit 1
+    fi
+    
     latest_rev=$(git -C "$ref_repo" tag -l "release.${date_str}.*" | awk -F. '{print $3}' | sort -n | tail -1)
     
     if [ -z "$latest_rev" ]; then
@@ -66,9 +79,11 @@ create_release() {
         repo_name=$(basename "$repo_path")
         tmp_repo="/tmp/stretch_release/$repo_name"
         
-        echo "Tagging and pushing $repo_name..."
-        git -C "$tmp_repo" tag "$tag_name"
-        git -C "$tmp_repo" push origin "$tag_name"
+        if [ -d "$tmp_repo" ]; then
+            echo "Tagging and pushing $repo_name..."
+            git -C "$tmp_repo" tag "$tag_name"
+            git -C "$tmp_repo" push origin "$tag_name"
+        fi
     done
     
     echo "Release $tag_name created successfully!"
@@ -91,11 +106,18 @@ update_repos() {
 
     echo "All existing repositories are clean. Proceeding..."
     
-    # 2. Fetch tags and get the latest tag from stretch4_body
-    body_repo="$HOME/repos/stretch4_body"
-    if [ ! -d "$body_repo" ]; then
-        echo "Error: $body_repo is missing. Cannot determine the latest tags."
-        exit 1
+    # 2. Fetch tags and get the latest tag from an existing repo
+    body_repo=""
+    for repo_path in "${REPOS[@]}"; do
+        if [ -d "$repo_path" ]; then
+            body_repo="$repo_path"
+            break
+        fi
+    done
+
+    if [ -z "$body_repo" ]; then
+        echo "No local repositories found. Skipping update."
+        return 0
     fi
     
     git -C "$body_repo" fetch --tags --quiet
@@ -143,8 +165,7 @@ update_repos() {
 
         # Check if directory exists first
         if [ ! -d "$repo_path" ]; then
-            echo "    [!] ERROR: Directory $repo_path does not exist."
-            FAILED_REPOS+=("$repo_name (directory not found)")
+            echo "    [i] INFO: Directory $repo_path does not exist, skipping."
             continue
         fi
 

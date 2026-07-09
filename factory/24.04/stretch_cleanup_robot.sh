@@ -18,7 +18,7 @@
 #   9.  Remove ROS domain ID assignment
 #  10.  Remove Sunshine remote desktop config
 #  11.  Remove RustDesk remote desktop config and history
-#  12.  Remove production repos in ~/repos (preserve stretch4 model repos)
+#  12.  Remove production repos in ~/repos (preserve stretch4_pyhesai_wrapper)
 #
 # Run from the machine you used for bringup (robot NUC).
 # ============================================================
@@ -61,7 +61,7 @@ echo "  [ 8] Clear ~/Pictures, ~/Downloads, ~/Documents"
 echo "  [ 9] Remove the ROS domain ID assignment"
 echo "  [10] Remove Sunshine remote desktop config"
 echo "  [11] Remove RustDesk remote desktop config and history"
-echo "  [12] Remove production repos in ~/repos (keep stretch4_body, stretch4_urdf, stretch4_flying_gripper, stretch4_pyhesai_wrapper)"
+echo "  [12] Remove production repos in ~/repos (keep stretch4_pyhesai_wrapper)"
 echo ""
 confirm "Are you sure you want to continue?" || { echo "Exiting."; exit 0; }
 
@@ -273,17 +273,15 @@ fi
 
 # -------------------------------------------------------
 # Step 12: Remove production repos in ~/repos
-#   Preserved: stretch4_body, stretch4_urdf, stretch4_flying_gripper
-#   Deleted:   everything else (incl. stretch_production_data_ii,
+#   Preserved: stretch4_pyhesai_wrapper
+#   Deleted:   everything else (incl. stretch4_body, stretch4_urdf,
+#              stretch4_flying_gripper, stretch_production_data_ii,
 #              stretch_production_tools_ii, stretch_firmware_ii, etc.)
 #   Note:      ~/stretch4_install is intentionally left untouched.
 # -------------------------------------------------------
 section "Step 12 / 12 — Removing production repos"
 
 REPO_DEL_CMD="find ~/repos -maxdepth 1 -mindepth 1"
-REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_body'"
-REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_urdf'"
-REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_flying_gripper'"
 REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_pyhesai_wrapper'"
 REPO_DEL_CMD="$REPO_DEL_CMD -exec rm -rf {} +"
 

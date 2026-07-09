@@ -38,24 +38,3 @@ pip3 install -q --no-warn-script-location gspread &>> $REDIRECT_LOGFILE
 pip3 install -q --no-warn-script-location gspread-formatting &>> $REDIRECT_LOGFILE
 pip3 install -q --no-warn-script-location oauth2client rsa==3.4 &>> $REDIRECT_LOGFILE
 pip3 install -q --no-warn-script-location mkdocs mkdocs-material mkdocstrings==0.17.0 pytkdocs[numpy-style] jinja2==3.0.3 &>> $REDIRECT_LOGFILE
-
-echo "Cloning repos"
-cd ~/repos/
-rm -rf ./stretch4_install
-git clone https://github.com/hello-robot/stretch4_install.git >> $REDIRECT_LOGFILE
-rm -rf ./stretch4_urdf
-git clone https://github.com/hello-robot/stretch4_urdf.git >> $REDIRECT_LOGFILE
-rm -rf ./stretch4_body
-git clone https://github.com/hello-robot/stretch4_body.git >> $REDIRECT_LOGFILE
-rm -rf ./stretch_firmware_ii
-git clone https://github.com/hello-robot/stretch_firmware_ii.git >> $REDIRECT_LOGFILE
-rm -rf ./stretch_fleet_ii
-git clone https://github.com/hello-robot/stretch_fleet_ii.git >> $REDIRECT_LOGFILE
-rm -rf ./stretch_production_tools_ii
-git clone https://github.com/hello-robot/stretch_production_tools_ii.git >> $REDIRECT_LOGFILE
-rm -rf ./stretch_production_data_ii
-git clone https://github.com/hello-robot/stretch_production_data_ii.git >> $REDIRECT_LOGFILE
-
-echo "Install stretch_production_tools"
-cd stretch_production_tools_ii/python
-pip3 install -e . >> $REDIRECT_LOGFILE

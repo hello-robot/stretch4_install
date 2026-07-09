@@ -86,13 +86,6 @@ sudo rm -rf $AMENT_WSDIR
 echo "Creating the workspace directory..."
 mkdir -p $AMENT_WSDIR/src
 
-# TODO:
-# echo "Cloning Stretch AI's and symlinking its ROS packages..."
-# cd "$HOME/repos"
-# rm -rf ./stretch4_ai
-# git clone https://github.com/hello-robot/stretch4_ai.git &>> $REDIRECT_LOGFILE
-# ln -s "$HOME/repos/stretch4_ai/src/stretch_ros2_bridge" "$AMENT_WSDIR/src"
-
 echo "Cloning the workspace's packages..."
 cd $AMENT_WSDIR/src
 vcs import --input ~/stretch4_install/factory/24.04/stretch_ros2_jazzy.repos &>> $REDIRECT_LOGFILE
