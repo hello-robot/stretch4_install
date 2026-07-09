@@ -111,7 +111,27 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 # We redirect stderr to stdout to capture all output
 # The script will exit with non-zero code on failure, causing the build to fail
 RUN cd /home/hello-robot/stretch4_install && \
-    bash -c 'yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; exit ${PIPESTATUS[1]}'
+    if ! yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; then \
+        echo "========================================================================"; \
+        echo "INSTALLATION FAILED! SURFACING REDIRECTED LOG FILES:"; \
+        echo "========================================================================"; \
+        for f in /home/hello-robot/stretch_user/log/stretch4_install_*/*redirected.txt; do \
+            if [ -f "$f" ]; then \
+                echo "=== CONTENT OF $f ==="; \
+                cat "$f"; \
+                echo "========================================================================"; \
+            fi; \
+        done; \
+        if [ -d /home/hello-robot/ament_ws/log ]; then \
+            echo "=== COLCON FAILURE LOGS ==="; \
+            find /home/hello-robot/ament_ws/log/ -name "stderr.log" -o -name "stdout.log" | while read -r log_file; do \
+                echo "=== Log: $log_file ==="; \
+                cat "$log_file"; \
+                echo "========================================================================"; \
+            done; \
+        fi; \
+        exit 1; \
+    fi
 
 # Verify that the FLEET_ID was properly configured in both locations
 RUN if [ ! -f /etc/hello-robot/hello-robot.conf ]; then \
