@@ -1,7 +1,6 @@
 # Table of contents
 
 * [README](README.md)
-* [LICENSE](LICENSE.md)
 * [docs](docs/README.md)
   * [Adding a New User](docs/add_new_user.md)
   * [Configuring the BIOS](docs/configure_BIOS.md)
