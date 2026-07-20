@@ -51,7 +51,8 @@ RUN mkdir -p /etc/udev/rules.d /etc/modprobe.d /etc/apt/keyrings /etc/netplan &&
 # Create a non-root user 'hello-robot' with sudo privileges
 # The installation scripts expect to run as a regular user with sudo access
 RUN useradd -m -s /bin/bash hello-robot && \
-    echo "hello-robot ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+    echo "hello-robot ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    echo "%sudo ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Switch to the hello-robot user
 USER hello-robot
@@ -114,11 +115,32 @@ RUN if [ ! -f /etc/hello-robot/hello-robot.conf ]; then \
     fi && \
     echo "SUCCESS: FLEET_ID properly configured in all required locations"
 
+# Run the secondary user installation test
+RUN cd /home/hello-robot/stretch4_install && \
+    ./stretch_new_user_install.sh -u second_user
+
+USER root
+
+# Verify that the secondary user 'second_user' was installed correctly and calibration files were copied
+RUN if [ ! -d /home/second_user/stretch_user/${SETUP_FLEET_ID} ]; then \
+        echo "ERROR: /home/second_user/stretch_user/${SETUP_FLEET_ID} directory not found"; \
+        exit 1; \
+    fi && \
+    if [ "$(stat -c '%U:%G' /home/second_user/stretch_user/${SETUP_FLEET_ID})" != "second_user:second_user" ]; then \
+        echo "ERROR: Incorrect ownership on secondary user calibration directory"; \
+        exit 1; \
+    fi && \
+    diff -r /home/hello-robot/stretch_user/${SETUP_FLEET_ID} /home/second_user/stretch_user/${SETUP_FLEET_ID} && \
+    echo "SUCCESS: Secondary user installation and calibration copy verified"
+
+USER hello-robot
+
 # Set the default command to display installation success and fleet ID
 CMD ["/bin/bash", "-c", "echo 'Stretch Robot Installation Complete' && \
      echo 'Fleet ID: '${SETUP_FLEET_ID} && \
      echo 'Configuration verified in:' && \
      echo '  - /etc/hello-robot/hello-robot.conf' && \
      echo '  - /home/hello-robot/stretch_user/'${SETUP_FLEET_ID} && \
+     echo '  - /home/second_user/stretch_user/'${SETUP_FLEET_ID} && \
      /bin/bash"]
 

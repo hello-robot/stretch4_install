@@ -37,7 +37,12 @@ if [ -n "$CREATE_USER" ]; then
         sudo useradd -m -s /bin/bash -G sudo "$CREATE_USER"
         
         echo "Please set a password for the new user $CREATE_USER:"
-        sudo passwd "$CREATE_USER"
+        if [ -t 0 ]; then
+            sudo passwd "$CREATE_USER"
+        else
+            echo "Non-interactive environment detected, setting default password for $CREATE_USER..."
+            echo "$CREATE_USER:$CREATE_USER" | sudo chpasswd
+        fi
     fi
     
     echo "Copying stretch4_install to the new user's home directory..."
@@ -128,9 +133,22 @@ echo "Setting up user copy of robot factory data (if not already there)..."
 if [ "$UPDATING" = true ]; then
     echo "~/stretch_user/$HELLO_FLEET_ID data present: not updating"
 else
-    sudo cp -rf /etc/hello-robot/$HELLO_FLEET_ID $HOME/stretch_user
-    sudo chown -R $USER:$USER $HOME/stretch_user/$HELLO_FLEET_ID
-    chmod a-w $HOME/stretch_user/$HELLO_FLEET_ID/udev/*.rules
+    if [ "$USER" != "hello-robot" ]; then
+        echo "Non-hello-robot user detected. Attempting to copy calibration data from hello-robot account..."
+        SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+        if [ -f "$SCRIPT_DIR/stretch_copy_calibration.sh" ] && sudo "$SCRIPT_DIR/stretch_copy_calibration.sh" --force -u "$USER"; then
+            echo "Successfully copied calibration data from hello-robot."
+        else
+            echo "Failed to copy hello-robot calibration data or copy utility not found. Falling back to factory defaults..."
+            sudo cp -rf /etc/hello-robot/$HELLO_FLEET_ID $HOME/stretch_user
+            sudo chown -R $USER:$USER $HOME/stretch_user/$HELLO_FLEET_ID
+            chmod a-w $HOME/stretch_user/$HELLO_FLEET_ID/udev/*.rules
+        fi
+    else
+        sudo cp -rf /etc/hello-robot/$HELLO_FLEET_ID $HOME/stretch_user
+        sudo chown -R $USER:$USER $HOME/stretch_user/$HELLO_FLEET_ID
+        chmod a-w $HOME/stretch_user/$HELLO_FLEET_ID/udev/*.rules
+    fi
 fi
 chmod -R a-x,o-w,+X ~/stretch_user
 
