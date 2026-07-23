@@ -206,6 +206,14 @@ if $do_factory_install; then
     if [ $? -ne 0 ]; then
         echo_failure_help
     fi
+
+    echo ""
+    cd $HOME/stretch4_install/factory/$factory_osdir
+    ./stretch_system_update.sh -l $logdir |& tee $logfile_update
+    if [ $? -ne 0 ]; then
+        echo_failure_help
+    fi
+
 fi
 
 
