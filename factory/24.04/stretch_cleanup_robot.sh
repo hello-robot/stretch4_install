@@ -19,8 +19,9 @@
 #  11.  Remove Sunshine remote desktop config
 #  12.  Remove RustDesk remote desktop config and history
 #  13.  Clear system trash
-#  14.  Install latest stretch4 packages
-#  15.  Remove production repos in ~/repos (LAST — script lives inside ~/repos)
+#  14.  Uninstall the production-tools pip package
+#  15.  Install latest stretch4 packages
+#  16.  Remove production repos in ~/repos (LAST — script lives inside ~/repos)
 #
 # Run from the machine you used for bringup (robot NUC).
 # ============================================================
@@ -120,8 +121,9 @@ echo "  [10] Remove the ROS domain ID assignment"
 echo "  [11] Remove Sunshine remote desktop config"
 echo "  [12] Remove RustDesk remote desktop config and history"
 echo "  [13] Clear system trash (~/.local/share/Trash)"
-echo "  [14] Install latest stretch4 packages"
-echo "  [15] Remove production repos in ~/repos (keep stretch4_pyhesai_wrapper) — runs last"
+echo "  [14] Uninstall the production-tools pip package"
+echo "  [15] Install latest stretch4 packages"
+echo "  [16] Remove production repos in ~/repos (keep stretch4_pyhesai_wrapper) — runs last"
 echo ""
 confirm "Are you sure you want to continue?" || { echo "Exiting."; exit 0; }
 
@@ -134,14 +136,14 @@ ROBOT_ID="$(hostname)"
 # -------------------------------------------------------
 # Step 1: Store and push production data
 # -------------------------------------------------------
-section "Step 1 / 15 — Storing and pushing production data"
+section "Step 1 / 16 — Storing and pushing production data"
 
 STORE_SCRIPT="$SCRIPT_DIR/store_production_data.sh"
 if [ -f "$STORE_SCRIPT" ]; then
     echo "  Running store_production_data.sh to copy and push robot data..."
     if ! bash "$STORE_SCRIPT"; then
         warn "store_production_data.sh reported errors — continuing with cleanup anyway."
-        errors+=("[1/15] store_production_data.sh")
+        errors+=("[1/16] store_production_data.sh")
     fi
 else
     # Fallback: bare git push if the store script is somehow missing
@@ -193,7 +195,7 @@ else
     }
     for repo in stretch_production_data_ii stretch_fleet_ii; do
         if ! push_repo "$repo"; then
-            errors+=("[1/15] Push $repo")
+            errors+=("[1/16] Push $repo")
         fi
     done
 fi
@@ -205,7 +207,7 @@ confirm "Confirm all production data has been pushed (check git log if unsure). 
 # -------------------------------------------------------
 # Step 2: Clear git credentials, PAT, and identity
 # -------------------------------------------------------
-section "Step 2 / 14 — Clearing git credentials and PAT"
+section "Step 2 / 16 — Clearing git credentials and PAT"
 
 GIT_CRED_CMD="rm -f ~/.git-credentials 2>/dev/null || true"
 GIT_CRED_CMD="$GIT_CRED_CMD; git config --global --unset credential.helper 2>/dev/null || true"
@@ -219,27 +221,27 @@ GIT_CRED_CMD="$GIT_CRED_CMD; rm -rf ~/.cache/git/ 2>/dev/null || true"
 # Remove entire .gitconfig to ensure no PAT remnants in credential helper
 GIT_CRED_CMD="$GIT_CRED_CMD; rm -f ~/.gitconfig 2>/dev/null || true"
 
-if ! run_step "[2/14] Clear git credentials and PAT" "$GIT_CRED_CMD"; then
-    errors+=("[2/14] Clear git credentials and PAT")
+if ! run_step "[2/16] Clear git credentials and PAT" "$GIT_CRED_CMD"; then
+    errors+=("[2/16] Clear git credentials and PAT")
 fi
 
 # -------------------------------------------------------
 # Step 3: Clear GitHub CLI (gh) auth credentials
 # -------------------------------------------------------
-section "Step 3 / 14 — Clearing GitHub CLI (gh) auth"
+section "Step 3 / 16 — Clearing GitHub CLI (gh) auth"
 
 GH_CMD="gh auth logout --hostname github.com 2>/dev/null || true"
 # Remove gh config directory entirely (stores tokens, hosts.yml)
 GH_CMD="$GH_CMD; rm -rf ~/.config/gh/ 2>/dev/null || true"
 
-if ! run_step "[3/14] Clear gh auth credentials" "$GH_CMD"; then
-    errors+=("[3/14] Clear gh auth credentials")
+if ! run_step "[3/16] Clear gh auth credentials" "$GH_CMD"; then
+    errors+=("[3/16] Clear gh auth credentials")
 fi
 
 # -------------------------------------------------------
 # Step 4: Remove Antigravity (Gemini) credentials and data
 # -------------------------------------------------------
-section "Step 4 / 14 — Removing Antigravity / Gemini credentials"
+section "Step 4 / 16 — Removing Antigravity / Gemini credentials"
 
 ANTI_CMD="rm -rf ~/.gemini/ 2>/dev/null || true"
 # ~/.antigravity — home-directory data folder (sign-in state, workspace cache)
@@ -253,41 +255,41 @@ ANTI_CMD="$ANTI_CMD; rm -rf ~/Downloads/Antigravity* ~/Downloads/Antigravity\ ID
 # Also remove any Google application default credentials
 ANTI_CMD="$ANTI_CMD; rm -rf ~/.config/gcloud/ 2>/dev/null || true"
 
-if ! run_step "[4/15] Remove Antigravity credentials" "$ANTI_CMD"; then
-    errors+=("[4/15] Remove Antigravity credentials")
+if ! run_step "[4/16] Remove Antigravity credentials" "$ANTI_CMD"; then
+    errors+=("[4/16] Remove Antigravity credentials")
 fi
 
 # -------------------------------------------------------
 # Step 5: Uninstall Antigravity
 # -------------------------------------------------------
-section "Step 5 / 15 — Uninstalling Antigravity"
+section "Step 5 / 16 — Uninstalling Antigravity"
 
 # Uninstall the .deb package (purge removes config files too)
 UNINSTALL_CMD="sudo apt-get remove --purge -y antigravity 2>/dev/null || true"
 # Clean up any leftover apt dependencies
 UNINSTALL_CMD="$UNINSTALL_CMD; sudo apt-get autoremove -y 2>/dev/null || true"
 
-if ! run_step "[5/15] Uninstall Antigravity" "$UNINSTALL_CMD"; then
-    errors+=("[5/15] Uninstall Antigravity")
+if ! run_step "[5/16] Uninstall Antigravity" "$UNINSTALL_CMD"; then
+    errors+=("[5/16] Uninstall Antigravity")
 fi
 
 # -------------------------------------------------------
 # Step 6: Remove VS Code credentials and configuration
 # -------------------------------------------------------
-section "Step 6 / 15 — Removing VS Code credentials and config"
+section "Step 6 / 16 — Removing VS Code credentials and config"
 
 VSCODE_CMD="rm -rf ~/.config/Code/ 2>/dev/null || true"
 VSCODE_CMD="$VSCODE_CMD; rm -rf ~/.vscode/ 2>/dev/null || true"
 VSCODE_CMD="$VSCODE_CMD; rm -rf ~/.vscode-server/ 2>/dev/null || true"
 
-if ! run_step "[6/15] Remove VS Code credentials" "$VSCODE_CMD"; then
-    errors+=("[6/15] Remove VS Code credentials")
+if ! run_step "[6/16] Remove VS Code credentials" "$VSCODE_CMD"; then
+    errors+=("[6/16] Remove VS Code credentials")
 fi
 
 # -------------------------------------------------------
 # Step 7: Remove Chrome profile data (full)
 # -------------------------------------------------------
-section "Step 7 / 15 — Removing Chrome profile data"
+section "Step 7 / 16 — Removing Chrome profile data"
 
 CHROME_CMD="rm -rf \"\$HOME/.config/google-chrome/\" 2>/dev/null || true"
 CHROME_CMD="$CHROME_CMD; rm -rf \"\$HOME/.cache/google-chrome/\" 2>/dev/null || true"
@@ -302,28 +304,28 @@ CHROME_CMD="$CHROME_CMD; rm -f \"\$HOME/.local/share/keyrings/user.keystore\" 2>
 # Kill the keyring daemon so deleted files are also purged from memory
 CHROME_CMD="$CHROME_CMD; pkill -u \"\$USER\" gnome-keyring-daemon 2>/dev/null || true"
 
-if ! run_step "[7/15] Remove Chrome profile data + Gmail keyring tokens" "$CHROME_CMD"; then
-    errors+=("[7/15] Remove Chrome profile data")
+if ! run_step "[7/16] Remove Chrome profile data + Gmail keyring tokens" "$CHROME_CMD"; then
+    errors+=("[7/16] Remove Chrome profile data")
 fi
 
 # -------------------------------------------------------
 # Step 8: Remove Firefox profile data (full)
 # -------------------------------------------------------
-section "Step 8 / 15 — Removing Firefox profile data"
+section "Step 8 / 16 — Removing Firefox profile data"
 
 FIREFOX_CMD="rm -rf \"\$HOME/.mozilla/\" 2>/dev/null || true"
 FIREFOX_CMD="$FIREFOX_CMD; rm -rf \"\$HOME/.cache/mozilla/\" 2>/dev/null || true"
 # Snap-installed Firefox
 FIREFOX_CMD="$FIREFOX_CMD; rm -rf \"\$HOME/snap/firefox/\" 2>/dev/null || true"
 
-if ! run_step "[8/15] Remove Firefox profile data" "$FIREFOX_CMD"; then
-    errors+=("[8/15] Remove Firefox profile data")
+if ! run_step "[8/16] Remove Firefox profile data" "$FIREFOX_CMD"; then
+    errors+=("[8/16] Remove Firefox profile data")
 fi
 
 # -------------------------------------------------------
 # Step 9: Clear standard user directories
 # -------------------------------------------------------
-section "Step 9 / 15 — Clearing user directories and shell history"
+section "Step 9 / 16 — Clearing user directories and shell history"
 # Clear standard user directories
 USER_DIR_CMD="rm -rf ~/Pictures/* ~/Downloads/* ~/Documents/* ~/Videos/* 2>/dev/null || true"
 # Clear shell command history — contains PATs, IPs, and bringup commands
@@ -334,18 +336,18 @@ USER_DIR_CMD="$USER_DIR_CMD; truncate -s 0 ~/.local/share/fish/fish_history 2>/d
 # Also clear the in-memory history so it can't be recalled after this script
 USER_DIR_CMD="$USER_DIR_CMD; history -c 2>/dev/null || true"
 
-if ! run_step "[9/15] Clear user dirs and shell history" "$USER_DIR_CMD"; then
-    errors+=("[9/15] Clear user directories and shell history")
+if ! run_step "[9/16] Clear user dirs and shell history" "$USER_DIR_CMD"; then
+    errors+=("[9/16] Clear user directories and shell history")
 fi
 
 # -------------------------------------------------------
 # Step 10: Remove ROS domain ID assignment
 # -------------------------------------------------------
-section "Step 10 / 15 — Removing ROS domain ID"
+section "Step 10 / 16 — Removing ROS domain ID"
 
 if [ -f ~/repos/stretch_production_tools_ii/utils/assign_random_ros_domain_id.py ]; then
-    if ! run_step "[10/15] Remove ROS domain ID" "python3 ~/repos/stretch_production_tools_ii/utils/assign_random_ros_domain_id.py --remove || true"; then
-        errors+=("[10/15] Remove ROS domain ID")
+    if ! run_step "[10/16] Remove ROS domain ID" "python3 ~/repos/stretch_production_tools_ii/utils/assign_random_ros_domain_id.py --remove || true"; then
+        errors+=("[10/16] Remove ROS domain ID")
     fi
 else
     warn "assign_random_ros_domain_id.py not found. Skipping."
@@ -354,58 +356,67 @@ fi
 # -------------------------------------------------------
 # Step 11: Remove Sunshine remote desktop config
 # -------------------------------------------------------
-section "Step 11 / 15 — Removing Sunshine config"
+section "Step 11 / 16 — Removing Sunshine config"
 
 SUNSHINE_CMD="rm -rf \"\$HOME/.config/sunshine/\" 2>/dev/null || true"
 
-if ! run_step "[11/15] Remove Sunshine config" "$SUNSHINE_CMD"; then
-    errors+=("[11/15] Remove Sunshine config")
+if ! run_step "[11/16] Remove Sunshine config" "$SUNSHINE_CMD"; then
+    errors+=("[11/16] Remove Sunshine config")
 fi
 
 # -------------------------------------------------------
 # Step 12: Remove RustDesk remote desktop config and history
 # -------------------------------------------------------
-section "Step 12 / 15 — Removing RustDesk config"
+section "Step 12 / 16 — Removing RustDesk config"
 
 RUSTDESK_CMD="sudo systemctl stop rustdesk 2>/dev/null || true"
 RUSTDESK_CMD="$RUSTDESK_CMD; pkill -u \"\$USER\" rustdesk 2>/dev/null || true"
 RUSTDESK_CMD="$RUSTDESK_CMD; rm -rf \"\$HOME/.config/rustdesk/\" 2>/dev/null || true"
 RUSTDESK_CMD="$RUSTDESK_CMD; sudo rm -rf /root/.config/rustdesk/ 2>/dev/null || true"
 
-if ! run_step "[12/15] Remove RustDesk config" "$RUSTDESK_CMD"; then
-    errors+=("[12/15] Remove RustDesk config")
+if ! run_step "[12/16] Remove RustDesk config" "$RUSTDESK_CMD"; then
+    errors+=("[12/16] Remove RustDesk config")
 fi
 
 # -------------------------------------------------------
 # Step 13: Clear system trash
 # -------------------------------------------------------
-section "Step 13 / 15 — Clearing system trash"
+section "Step 13 / 16 — Clearing system trash"
 
 TRASH_CMD="rm -rf \$HOME/.local/share/Trash/files/* 2>/dev/null || true"
 TRASH_CMD="$TRASH_CMD; rm -rf \$HOME/.local/share/Trash/info/* 2>/dev/null || true"
 TRASH_CMD="$TRASH_CMD; rm -rf \$HOME/.local/share/Trash/expunged/* 2>/dev/null || true"
 
-if ! run_step "[13/15] Clear system trash" "$TRASH_CMD"; then
-    errors+=("[13/15] Clear system trash")
+if ! run_step "[13/16] Clear system trash" "$TRASH_CMD"; then
+    errors+=("[13/16] Clear system trash")
 fi
 
 # -------------------------------------------------------
-# Step 14: Install latest stretch4 packages
+# Step 14: Uninstall the production-tools pip package
 # -------------------------------------------------------
-section "Step 14 / 15 — Installing latest stretch4 packages"
+section "Step 14 / 16 — Uninstalling production-tools pip package"
+
+PIP_UNINSTALL_CMD="pip3 uninstall -y hello-robot-stretch-production-tools-ii 2>/dev/null || true"
+
+if ! run_step "[14/16] Uninstall production-tools pip package" "$PIP_UNINSTALL_CMD"; then
+    errors+=("[14/16] Uninstall production-tools pip package")
+fi
+
+# -------------------------------------------------------
+# Step 15: Install latest stretch4 packages
+# -------------------------------------------------------
+section "Step 15 / 16 — Installing latest stretch4 packages"
 
 PIP_CMD="pip3 install --upgrade hello-robot-stretch4-body hello-robot-stretch4-urdf hello-robot-stretch4-flying-gripper hello-robot-stretch4-tray"
 
-if ! run_step "[14/15] Install latest stretch4 packages" "$PIP_CMD"; then
-    errors+=("[14/15] Install latest stretch4 packages")
+if ! run_step "[15/16] Install latest stretch4 packages" "$PIP_CMD"; then
+    errors+=("[15/16] Install latest stretch4 packages")
 fi
 
 # -------------------------------------------------------
-# Step 15: Remove production repos in ~/repos
-#   This step runs LAST because the script itself lives inside ~/repos.
-#   Note:      ~/stretch4_install is intentionally left untouched.
+# Step 16: Remove production repos in ~/repos
 # -------------------------------------------------------
-section "Step 15 / 15 — Removing production repos"
+section "Step 16 / 16 — Removing production repos"
 
 # cd away from ~/repos before deleting it so the shell keeps a valid CWD
 cd "$HOME"
@@ -414,8 +425,8 @@ REPO_DEL_CMD="find ~/repos -maxdepth 1 -mindepth 1"
 REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_pyhesai_wrapper'"
 REPO_DEL_CMD="$REPO_DEL_CMD -exec rm -rf {} +"
 
-if ! run_step "[15/15] Remove production repos in ~/repos" "$REPO_DEL_CMD"; then
-    errors+=("[15/15] Remove repos")
+if ! run_step "[16/16] Remove production repos in ~/repos" "$REPO_DEL_CMD"; then
+    errors+=("[16/16] Remove repos")
 fi
 
 
