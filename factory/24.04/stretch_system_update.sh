@@ -45,6 +45,23 @@ update_repo "stretch_fleet_ii" "master/main"
 update_repo "stretch_production_data_ii" "master/main"
 update_repo "stretch4_pyhesai_wrapper" "master/main"
 
+# System dependencies needed to build stretch4_pyhesai_wrapper's C++ extension
+for pkg in libpcap-dev libssl-dev; do
+    if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "ok installed"; then
+        echo "Installing missing system dependency: $pkg..."
+        sudo apt-get update && sudo apt-get install -y "$pkg"
+    fi
+done
+
+# Build tools required for editable installs without isolation (meson-python)
+pip install meson ninja meson-python scikit-build-core pybind11 setuptools wheel --quiet
+
+echo "Installing stretch4_pyhesai_wrapper..."
+pip install -e "$repos_dir/stretch4_pyhesai_wrapper" --no-build-isolation
+
+echo "Installing stretch_production_tools_ii..."
+pip install -e "$repos_dir/stretch_production_tools_ii/python"
+
 echo "Updating Stretch pip packages..."
 pip install -U hello-robot-stretch4-body
 pip install -U hello-robot-stretch4-urdf
