@@ -7,18 +7,35 @@ if getopts ":l:" opt && [[ $opt == "l" && -d $OPTARG ]]; then
 fi
 REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_install_system.`date '+%Y%m%d%H%M'`_redirected.txt"
 
+function retry_cmd {
+    local max_attempts=3
+    local delay=5
+    local attempt=1
+    while true; do
+        "$@" && return 0
+        if (( attempt >= max_attempts )); then
+            echo "ERROR: Command failed after $max_attempts attempts: $*"
+            return 1
+        fi
+        echo "Attempt $attempt failed. Retrying in ${delay}s..."
+        sleep $delay
+        ((attempt++))
+        ((delay *= 2))
+    done
+}
+
 function install {
-    sudo apt-get install -y "$@" >> $REDIRECT_LOGFILE
+    retry_cmd sudo apt-get install -y "$@" >> $REDIRECT_LOGFILE
 }
 
 echo "###########################################"
 echo "INSTALLATION OF SYSTEM WIDE PACKAGES"
 echo "###########################################"
 echo "Apt update & upgrade (this might take a while)"
-sudo apt-add-repository universe -y >> $REDIRECT_LOGFILE
-sudo add-apt-repository -y ppa:kobuk-team/intel-graphics >> $REDIRECT_LOGFILE
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
-sudo apt-get --yes upgrade &>> $REDIRECT_LOGFILE
+retry_cmd sudo apt-add-repository universe -y >> $REDIRECT_LOGFILE
+retry_cmd sudo add-apt-repository -y ppa:kobuk-team/intel-graphics >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes upgrade &>> $REDIRECT_LOGFILE
 echo "Install zip & unzip"
 install zip unzip
 echo "Install Curl"
@@ -82,14 +99,14 @@ echo "INSTALLATION OF ROS 2 JAZZY"
 echo "###########################################"
 echo "Install ros-apt-source"
 function install_ros_apt_source {
-    export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F'"' '{print $4}')
+    export ROS_APT_SOURCE_VERSION=$(retry_cmd curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F'"' '{print $4}')
     echo $ROS_APT_SOURCE_VERSION
-    curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
+    retry_cmd curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
     sudo dpkg -i /tmp/ros2-apt-source.deb
 }
 install_ros_apt_source &>> $REDIRECT_LOGFILE
 echo "Apt update"
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install ROS 2 Jazzy (this might take a while)"
 install ros-jazzy-desktop-full
 # https://discourse.ros.org/t/ros-developer-tools-now-in-binary-form/29802
@@ -106,7 +123,7 @@ echo "Configure rosdep"
 if [ -f "/etc/ros/rosdep/sources.list.d/20-default.list" ]; then
     sudo rm /etc/ros/rosdep/sources.list.d/20-default.list
 fi
-sudo rosdep init &>> $REDIRECT_LOGFILE
+retry_cmd sudo rosdep init &>> $REDIRECT_LOGFILE
 echo "Install vcstool"
 install python3-vcstool
 echo ""
@@ -132,7 +149,7 @@ echo "INSTALLATION OF WEB INTERFACE"
 echo "###########################################"
 echo "Register the nodesource APT server's public key"
 function register_nodesource_apt_server {
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    retry_cmd bash -c 'curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg'
 }
 register_nodesource_apt_server &>> $REDIRECT_LOGFILE
 echo "Add the nodesource APT server to the list of APT respositories"
@@ -142,7 +159,7 @@ function add_nodesource_apt_server {
 }
 add_nodesource_apt_server &>> $REDIRECT_LOGFILE
 echo "Apt update"
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install NodeJS"
 install nodejs
 # echo "Install PyPCL and PyKDL"
@@ -151,6 +168,6 @@ install nodejs
 # pip3 install python-pcl --break-system-packages
 
 echo "Install PM2"
-sudo npm install -g pm2 &>> $REDIRECT_LOGFILE
+retry_cmd sudo npm install -g pm2 &>> $REDIRECT_LOGFILE
 echo ""
 

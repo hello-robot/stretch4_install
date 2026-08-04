@@ -57,6 +57,24 @@ fi
 REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_new_user_install.`date '+%Y%m%d%H%M'`_redirected.txt"
 
 
+function retry_cmd {
+    local max_attempts=3
+    local delay=5
+    local attempt=1
+    while true; do
+        "$@" && return 0
+        if (( attempt >= max_attempts )); then
+            echo "ERROR: Command failed after $max_attempts attempts: $*"
+            return 1
+        fi
+        echo "Attempt $attempt failed. Retrying in ${delay}s..."
+        sleep $delay
+        ((attempt++))
+        ((delay *= 2))
+    done
+}
+
+
 function on_failure {
     local failed_line=$1
     local failed_command=$2
@@ -176,7 +194,7 @@ echo "Updating media assets..."
 sudo cp $HOME/stretch4_install/factory/$factory_osdir/stretch_about.png /etc/hello-robot
 
 echo "Install uv"
-curl -LsSf https://astral.sh/uv/install.sh | sh &>> $REDIRECT_LOGFILE
+retry_cmd bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh' &>> $REDIRECT_LOGFILE
 
 echo "Adding user to the dialout group to access Arduino..."
 sudo adduser $USER dialout >> $REDIRECT_LOGFILE
@@ -203,21 +221,21 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "INSTALLATION OF USER LEVEL PIP3 PACKAGES"
     echo "###########################################"
     echo "Upgrade pip3"
-    python3 -m pip -q install --no-warn-script-location --user --upgrade pip &>> $REDIRECT_LOGFILE
+    retry_cmd python3 -m pip -q install --no-warn-script-location --user --upgrade pip &>> $REDIRECT_LOGFILE
     echo "Clear pip cache"
     python3 -m pip cache purge &>> $REDIRECT_LOGFILE
     
     echo "Install Stretch4 URDF"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
+    retry_cmd python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch Flying Gripper"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
+    retry_cmd python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch4 Body"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
+    retry_cmd python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch 4 Tray"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
+    retry_cmd python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
 
     # # TODO: doesn't work in a fresh install currently, needs investigation
     # echo "###########################################"

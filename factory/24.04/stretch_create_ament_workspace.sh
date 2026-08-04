@@ -21,6 +21,23 @@ done
 
 REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_create_ament_workspace.`date '+%Y%m%d%H%M'`_redirected.txt"
 
+function retry_cmd {
+    local max_attempts=3
+    local delay=5
+    local attempt=1
+    while true; do
+        "$@" && return 0
+        if (( attempt >= max_attempts )); then
+            echo "ERROR: Command failed after $max_attempts attempts: $*"
+            return 1
+        fi
+        echo "Attempt $attempt failed. Retrying in ${delay}s..."
+        sleep $delay
+        ((attempt++))
+        ((delay *= 2))
+    done
+}
+
 function on_failure {
     local failed_line=$1
     local failed_command=$2
@@ -66,9 +83,9 @@ if [[ -d $AMENT_WSDIR ]]; then
 fi
 
 echo "Apt update..."
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Ensuring build tools are present (required for depthai-core/vcpkg)..."
-sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
 
 echo "Purging pip cache..."
 export PIP_BREAK_SYSTEM_PACKAGES=1
@@ -79,7 +96,7 @@ export PATH=${PATH}:~/.local/bin
 export HELLO_FLEET_ID=$HELLO_FLEET_ID
 export HELLO_FLEET_PATH=${HOME}/stretch_user
 echo "Updating rosdep indices..."
-rosdep update --include-eol-distros &>> $REDIRECT_LOGFILE
+retry_cmd rosdep update --include-eol-distros &>> $REDIRECT_LOGFILE
 
 echo "Deleting $AMENT_WSDIR if it already exists..."
 sudo rm -rf $AMENT_WSDIR
@@ -88,28 +105,28 @@ mkdir -p $AMENT_WSDIR/src
 
 echo "Cloning the workspace's packages..."
 cd $AMENT_WSDIR/src
-vcs import --input ~/stretch4_install/factory/24.04/stretch_ros2_jazzy.repos &>> $REDIRECT_LOGFILE
+retry_cmd vcs import --input ~/stretch4_install/factory/24.04/stretch_ros2_jazzy.repos &>> $REDIRECT_LOGFILE
 
 echo "Cloning HesaiLidar_ROS_2.0 submodules..."
 cd $AMENT_WSDIR/src/HesaiLidar_ROS_2.0
-git submodule update --init --recursive &>> $REDIRECT_LOGFILE
+retry_cmd git submodule update --init --recursive &>> $REDIRECT_LOGFILE
 
 echo "Cloning Luxonis depthai submodules..."
 cd $AMENT_WSDIR/src/depthai-core
-git submodule update --init --recursive &>> $REDIRECT_LOGFILE
+retry_cmd git submodule update --init --recursive &>> $REDIRECT_LOGFILE
 
 echo "Fetch ROS packages' dependencies (this might take a while)..."
 cd $AMENT_WSDIR/
 # The rosdep flags below have been chosen very carefully. Please review the docs before changing them.
 # https://docs.ros.org/en/independent/api/rosdep/html/commands.html
-rosdep install --rosdistro=jazzy -iy --from-paths src &>> $REDIRECT_LOGFILE
+retry_cmd rosdep install --rosdistro=jazzy -iy --from-paths src &>> $REDIRECT_LOGFILE
 
 echo "Install web interface dependencies..."
 cd $AMENT_WSDIR/src/stretch4_web_teleop
-npm install --force &>> $REDIRECT_LOGFILE
+retry_cmd npm install --force &>> $REDIRECT_LOGFILE
 echo "Generating web interface certs..."
 cd $AMENT_WSDIR/src/stretch4_web_teleop/certificates
-curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64" &>> $REDIRECT_LOGFILE
+retry_cmd curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64" &>> $REDIRECT_LOGFILE
 chmod +x mkcert-v*-linux-amd64
 sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
 CAROOT=`pwd` mkcert --install &>> $REDIRECT_LOGFILE
