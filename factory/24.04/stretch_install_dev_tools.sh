@@ -7,19 +7,19 @@ if getopts ":l:" opt && [[ $opt == "l" && -d $OPTARG ]]; then
 fi
 REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_install_dev_tools.`date '+%Y%m%d%H%M'`_redirected.txt"
 
-if [ ! -f "$HOME/stretch_user/stretch_venv/bin/activate" ]; then
-    echo "ERROR: The virtual environment ~/stretch_user/stretch_venv does not exist."
+if [ ! -d "$HOME/stretch4_install/stretch_venv/.pixi/envs/default" ]; then
+    echo "ERROR: The virtual environment ~/stretch4_install/stretch_venv/.pixi/envs/default does not exist."
     echo "Please run the setup script to generate it:"
-    if [ -d "$HOME/stretch4_install" ]; then
-        echo "    ~/stretch4_install/stretch_venv/setup_venv.sh"
-    else
-        echo "    ~/stretch_install/stretch_venv/setup_venv.sh"
-    fi
+    echo "    ~/stretch4_install/stretch_venv/setup_venv.sh"
     echo "Exiting."
     exit 1
 fi
 
-source "$HOME/stretch_user/stretch_venv/bin/activate"
+export PATH="$HOME/stretch4_install/stretch_venv/.pixi/envs/default/bin:$PATH"
+export CONDA_PREFIX="$HOME/stretch4_install/stretch_venv/.pixi/envs/default"
+for f in "$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
+    if [ -f "$f" ]; then source "$f"; fi
+done
 
 echo "#############################################"
 echo "INSTALLATION OF DEV TOOLS FOR HELLO ROBOT INTERNAL PRODUCTION"

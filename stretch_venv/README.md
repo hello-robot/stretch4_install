@@ -4,7 +4,7 @@ This directory contains the version-controlled configuration for the unified dev
 
 ## Layout
 
-1. **Configuration (`~/stretch_install/stretch_venv/`)**:
+1. **Configuration (`~/stretch4_install/stretch_venv/`)**:
    - `pyproject.toml`: Defines the core Python dependencies (such as `hello-robot-stretch4-urdf` and `hello-robot-stretch4-body`) and build tools (`cmake`, `ninja`, `compilers`).
    - `pixi.lock`: The lockfile containing exact versions, dependencies, and hashes for 100% reproducible installs.
    - `README.md`: This file.
@@ -24,7 +24,7 @@ curl -fsSL https://pixi.sh/install.sh | sh
 
 To set up or update the environment:
 ```bash
-cd ~/stretch_install/stretch_venv
+cd ~/stretch4_install/stretch_venv
 pixi install
 ```
 

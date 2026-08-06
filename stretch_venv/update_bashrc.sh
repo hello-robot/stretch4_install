@@ -17,7 +17,8 @@ TEMP_BASHRC=$(mktemp)
 while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ "$line" =~ ^[[:space:]]*source[[:space:]]+/opt/ros/jazzy/setup.bash ]] || \
        [[ "$line" =~ ^[[:space:]]*source[[:space:]]+.*ament_ws.*/install/setup.bash ]] || \
-       [[ "$line" =~ ^[[:space:]]*source[[:space:]]+/usr/share/colcon_cd/function/colcon_cd.sh ]]; then
+       [[ "$line" =~ ^[[:space:]]*source[[:space:]]+/usr/share/colcon_cd/function/colcon_cd.sh ]] || \
+       [[ "$line" =~ stretch_install/stretch_venv ]]; then
         echo "# Commented out by Stretch installer to use unified setup:" >> "$TEMP_BASHRC"
         echo "# $line" >> "$TEMP_BASHRC"
     else
@@ -28,7 +29,7 @@ done < "$BASHRC"
 mv "$TEMP_BASHRC" "$BASHRC"
 
 # Append the unified conditional block if it is not already present
-if ! grep -q "stretch_install/stretch_venv/.pixi" "$BASHRC"; then
+if ! grep -q "stretch4_install/stretch_venv/.pixi" "$BASHRC"; then
     echo "Appending unified ROS 2 & Virtual Environment setup block to ~/.bashrc..."
     cat << 'EOF' >> "$BASHRC"
 
@@ -44,12 +45,12 @@ if [ -f /usr/share/colcon_cd/function/colcon_cd.sh ]; then
 fi
 
 # Activate the Pixi environment if it exists
-PIXI_ENV_ACTIVATE="$HOME/stretch_install/stretch_venv/.pixi/envs/default/etc/conda/activate.d/activate.sh"
+PIXI_ENV_ACTIVATE="$HOME/stretch4_install/stretch_venv/.pixi/envs/default/etc/conda/activate.d/activate.sh"
 # Alternatively, we can use 'pixi shell' logic or just source the bin/activate if it's a conda env
 # The most robust way is to source the activate script provided by pixi/conda
-if [ -d "$HOME/stretch_install/stretch_venv/.pixi/envs/default" ]; then
-    export PATH="$HOME/stretch_install/stretch_venv/.pixi/envs/default/bin:$PATH"
-    export CONDA_PREFIX="$HOME/stretch_install/stretch_venv/.pixi/envs/default"
+if [ -d "$HOME/stretch4_install/stretch_venv/.pixi/envs/default" ]; then
+    export PATH="$HOME/stretch4_install/stretch_venv/.pixi/envs/default/bin:$PATH"
+    export CONDA_PREFIX="$HOME/stretch4_install/stretch_venv/.pixi/envs/default"
     # Source conda activation scripts if they exist
     for f in "$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
         if [ -f "$f" ]; then source "$f"; fi

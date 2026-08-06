@@ -49,6 +49,7 @@ if [ -n "$CREATE_USER" ]; then
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
     sudo mkdir -p "/home/$CREATE_USER/stretch4_install"
     sudo cp -r "$SCRIPT_DIR/." "/home/$CREATE_USER/stretch4_install/"
+    sudo rm -rf "/home/$CREATE_USER/stretch4_install/stretch_venv/.pixi"
     sudo chown -R "$CREATE_USER:$CREATE_USER" "/home/$CREATE_USER/stretch4_install"
     
     echo "Switching execution to $CREATE_USER..."
@@ -203,26 +204,9 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "###########################################"
     echo "CREATING AND SYNCHRONIZING STRETCH PYTHON VIRTUAL ENVIRONMENT"
     echo "###########################################"
-    echo "Upgrade pip3"
-    python3 -m pip -q install --no-warn-script-location --user --upgrade pip &>> $REDIRECT_LOGFILE
-    echo "Clear pip cache"
-    python3 -m pip cache purge &>> $REDIRECT_LOGFILE
-    
-    echo "Install Stretch4 URDF"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch Flying Gripper"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
-
-    # Call the dedicated setup_venv.sh script
+    # Call the dedicated setup_venv.sh script to handle virtual environment and package installation
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
     bash "$SCRIPT_DIR/stretch_venv/setup_venv.sh" &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch 4 Tray"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch4 PyHesai Wrapper"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
 
     # # TODO: doesn't work in a fresh install currently, needs investigation
     # echo "###########################################"

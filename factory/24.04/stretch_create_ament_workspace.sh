@@ -117,7 +117,7 @@ export ROS_PYTHON_VERSION=3
 export PIP_BREAK_SYSTEM_PACKAGES=1
 
 # 2. Define keys that we want Pixi to handle or that are known to conflict
-PIXI_KEYS="python3-numpy python3-lark python3-empy"
+PIXI_KEYS="python3-numpy python3-lark python3-empy python3-transforms3d transforms3d"
 
 echo "Running rosdep install (skipping Pixi-managed keys)..."
 rosdep install --rosdistro=jazzy -iy --from-paths src --skip-keys "$PIXI_KEYS" &>> $REDIRECT_LOGFILE
