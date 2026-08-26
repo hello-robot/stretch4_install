@@ -5,17 +5,15 @@ REDIRECT_LOGDIR="$HOME/stretch_user/log"
 if getopts ":l:" opt && [[ $opt == "l" && -d $OPTARG ]]; then
     REDIRECT_LOGDIR=$OPTARG
 fi
-mkdir -p "$REDIRECT_LOGDIR"
-REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_install_system.$(date '+%Y%m%d%H%M')_redirected.txt"
+REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_install_system.`date '+%Y%m%d%H%M'`_redirected.txt"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/stretch_apt_common.sh"
 
-APT_LOGFILE="$REDIRECT_LOGFILE"
 apt_configure
 
 function install {
-    apt_install "$@"
+    retry_cmd sudo apt-get install -y "$@" >> $REDIRECT_LOGFILE
 }
 
 echo "###########################################"
@@ -24,8 +22,8 @@ echo "###########################################"
 echo "Apt update & upgrade (this might take a while)"
 sudo apt-add-repository universe -y >> $REDIRECT_LOGFILE
 sudo add-apt-repository -y ppa:kobuk-team/intel-graphics >> $REDIRECT_LOGFILE
-apt_retry --yes update
-apt_upgrade
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes upgrade &>> $REDIRECT_LOGFILE
 echo "Install zip & unzip"
 install zip unzip
 echo "Install Curl"
@@ -99,7 +97,7 @@ function install_ros_apt_source {
 }
 install_ros_apt_source &>> $REDIRECT_LOGFILE
 echo "Apt update"
-apt_retry --yes update
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install ROS 2 Jazzy (this might take a while)"
 install ros-jazzy-desktop-full
 # https://discourse.ros.org/t/ros-developer-tools-now-in-binary-form/29802
@@ -151,7 +149,7 @@ function add_nodesource_apt_server {
 }
 add_nodesource_apt_server &>> $REDIRECT_LOGFILE
 echo "Apt update"
-apt_retry --yes update
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install NodeJS"
 install nodejs
 # echo "Install PyPCL and PyKDL"
