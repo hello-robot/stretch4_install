@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Script to update and sanitize ~/.bashrc for Stretch 4 ROS 2 and Virtual Environment
+# Script to update and sanitize ~/.bashrc for the Stretch 4 unified environment.
+#
+# ROS 2 Jazzy lives inside the pixi environment (RoboStack), so activating that
+# environment is what makes ROS available. There is no /opt/ros to source.
 
 set -e
 
@@ -13,7 +16,9 @@ fi
 echo "Sanitizing ~/.bashrc of old duplicate entries..."
 TEMP_BASHRC=$(mktemp)
 
-# Read the file and comment out redundant/duplicate hardcoded lines
+# Read the file and comment out redundant/duplicate hardcoded lines. The
+# /opt/ros/jazzy line is now always wrong: sourcing the apt ROS install shadows
+# the RoboStack one in AMENT_PREFIX_PATH and drags in the system numpy.
 while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ "$line" =~ ^[[:space:]]*source[[:space:]]+/opt/ros/jazzy/setup.bash ]] || \
        [[ "$line" =~ ^[[:space:]]*source[[:space:]]+.*ament_ws.*/install/setup.bash ]] || \
@@ -34,28 +39,30 @@ if ! grep -q "stretch4_install/stretch_venv/.pixi" "$BASHRC"; then
     cat << 'EOF' >> "$BASHRC"
 
 # STRETCH ROS2 & UNIFIED ENVIRONMENT SETUP
-if [ -f /opt/ros/jazzy/setup.bash ]; then
-    source /opt/ros/jazzy/setup.bash
-fi
-if [ -f ~/ament_ws/install/setup.bash ]; then
-    source ~/ament_ws/install/setup.bash
-fi
-if [ -f /usr/share/colcon_cd/function/colcon_cd.sh ]; then
-    source /usr/share/colcon_cd/function/colcon_cd.sh
-fi
-
-# Activate the Pixi environment if it exists
-PIXI_ENV_ACTIVATE="$HOME/stretch4_install/stretch_venv/.pixi/envs/default/etc/conda/activate.d/activate.sh"
-# Alternatively, we can use 'pixi shell' logic or just source the bin/activate if it's a conda env
-# The most robust way is to source the activate script provided by pixi/conda
-if [ -d "$HOME/stretch4_install/stretch_venv/.pixi/envs/default" ]; then
-    export PATH="$HOME/stretch4_install/stretch_venv/.pixi/envs/default/bin:$PATH"
-    export CONDA_PREFIX="$HOME/stretch4_install/stretch_venv/.pixi/envs/default"
-    # Source conda activation scripts if they exist
+# The pixi environment provides Python, the build toolchain, AND ROS 2 Jazzy
+# (from RoboStack). It must be activated before the ament workspace overlay is
+# sourced, because that overlay depends on the ROS 2 install underneath it.
+STRETCH_PIXI_ENV="$HOME/stretch4_install/stretch_venv/.pixi/envs/default"
+if [ -d "$STRETCH_PIXI_ENV" ]; then
+    export PATH="$STRETCH_PIXI_ENV/bin:$PATH"
+    export CONDA_PREFIX="$STRETCH_PIXI_ENV"
+    # Source conda activation scripts if they exist. This is what sets
+    # ROS_DISTRO, AMENT_PREFIX_PATH and friends.
     for f in "$CONDA_PREFIX/etc/conda/activate.d/"*.sh; do
         if [ -f "$f" ]; then source "$f"; fi
     done
 fi
+
+# Overlay the locally built ament workspace on top of the ROS 2 install.
+if [ -f ~/ament_ws/install/setup.bash ]; then
+    source ~/ament_ws/install/setup.bash
+fi
+
+# colcon_cd now ships inside the pixi environment rather than in /usr/share.
+if [ -n "$CONDA_PREFIX" ] && [ -f "$CONDA_PREFIX/share/colcon_cd/function/colcon_cd.sh" ]; then
+    source "$CONDA_PREFIX/share/colcon_cd/function/colcon_cd.sh"
+fi
+unset STRETCH_PIXI_ENV
 EOF
 else
     echo "ROS 2 and Virtual Environment setup block is already present in ~/.bashrc."

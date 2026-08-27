@@ -74,57 +74,36 @@ echo "Install stretch_tray dependencies"
 install pkg-config libcairo-dev gir1.2-appindicator3-0.1 libgirepository-2.0-dev
 echo "Install Intel GPU dependencies"
 install intel-gpu-tools intel-media-va-driver-non-free libva-glx2 va-driver-all vainfo intel-opencl-icd
+echo "Install xterm (needed by stretch_simulation launch files)"
+install xterm
 echo ""
 
-# https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html
+# ROS 2 Jazzy is NOT installed from apt. It is installed into the pixi
+# environment from RoboStack (conda-forge builds of ROS 2), so that the ROS
+# distribution, the Python interpreter, and the build toolchain all come from a
+# single locked environment. See stretch_venv/pyproject.toml.
+#
+# stretch_venv/setup_venv.sh (invoked by stretch_new_user_install.sh) installs
+# it, along with colcon, rosdep, vcstool, and every ROS package the ament
+# workspace depends on. Nothing needs to be done here, and /opt/ros must stay
+# empty: an apt ROS install alongside the RoboStack one will shadow it via
+# AMENT_PREFIX_PATH and produce ABI mismatches at runtime.
 echo "###########################################"
-echo "INSTALLATION OF ROS 2 JAZZY"
+echo "ROS 2 JAZZY (installed later, via pixi/RoboStack)"
 echo "###########################################"
-echo "Install ros-apt-source"
-function install_ros_apt_source {
-    export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F'"' '{print $4}')
-    echo $ROS_APT_SOURCE_VERSION
-    curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
-    sudo dpkg -i /tmp/ros2-apt-source.deb
-}
-install_ros_apt_source &>> $REDIRECT_LOGFILE
-echo "Apt update"
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
-echo "Install ROS 2 Jazzy (this might take a while)"
-install ros-jazzy-desktop-full
-# https://discourse.ros.org/t/ros-developer-tools-now-in-binary-form/29802
-echo "Install Zenoh middleware"
-install ros-jazzy-rmw-zenoh-cpp
-echo "Install ROS 2 Dev Tools"
-install ros-dev-tools
-echo "Install colcon"
-install python3-colcon-common-extensions
-install python3-colcon-clean
-echo "Install rosdep"
-install python3-rosdep
-echo "Configure rosdep"
-if [ -f "/etc/ros/rosdep/sources.list.d/20-default.list" ]; then
-    sudo rm /etc/ros/rosdep/sources.list.d/20-default.list
+if [ -d /opt/ros/jazzy ]; then
+    echo "WARNING: /opt/ros/jazzy exists. ROS 2 now comes from the pixi"
+    echo "         environment (RoboStack). The apt install should be removed:"
+    echo "             sudo apt-get remove --purge 'ros-jazzy-*' ros2-apt-source"
+    echo "             sudo apt-get autoremove"
 fi
-sudo rosdep init &>> $REDIRECT_LOGFILE
-echo "Install vcstool"
-install python3-vcstool
 echo ""
 
 echo "###########################################"
-echo "INSTALLATION OF ADDITIONAL ROS JAZZY PKGS"
+echo "INSTALLATION OF NON-ROS URDF TOOLING"
 echo "###########################################"
 echo "Install packages to work with URDFs"
 install liburdfdom-tools meshlab
-install ros-jazzy-urdfdom-py
-echo "Install joint state GUI package"
-install ros-jazzy-joint-state-publisher-gui
-echo "Install IMU visualization plugin for RViz and IMU filter"
-install ros-jazzy-imu-tools ros-jazzy-imu-filter-madgwick
-echo "Install robot localization package for use with IMU and wheel odometry"
-install ros-jazzy-robot-localization
-echo "Install teleop packages"
-install ros-jazzy-teleop-twist-keyboard
 echo ""
 
 echo "###########################################"

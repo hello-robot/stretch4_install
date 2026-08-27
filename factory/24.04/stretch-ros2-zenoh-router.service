@@ -7,7 +7,10 @@ Wants=network-online.target
 Type=simple
 User=__USER__
 Environment="RMW_IMPLEMENTATION=rmw_zenoh_cpp"
-ExecStart=/bin/bash -c "source __USER_HOME__/ament_ws/install/setup.bash && exec ros2 run rmw_zenoh_cpp rmw_zenohd"
+# ROS 2 Jazzy is provided by the pixi environment (RoboStack), so it has to be
+# activated before the ament workspace overlay is sourced. run_in_stretch_env.sh
+# does both, then execs the command.
+ExecStart=__USER_HOME__/stretch4_install/factory/24.04/run_in_stretch_env.sh ros2 run rmw_zenoh_cpp rmw_zenohd
 Restart=on-failure
 RestartSec=3
 
