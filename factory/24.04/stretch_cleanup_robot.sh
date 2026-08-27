@@ -407,7 +407,7 @@ fi
 # -------------------------------------------------------
 section "Step 15 / 16 — Installing latest stretch4 packages"
 
-PIP_CMD="pip3 install --upgrade hello-robot-stretch4-body hello-robot-stretch4-urdf hello-robot-stretch4-flying-gripper hello-robot-stretch4-tray"
+PIP_CMD="pip3 install --upgrade hello-robot-stretch4-body hello-robot-stretch4-urdf hello-robot-stretch4-flying-gripper hello-robot-stretch4-tray hello-robot-stretch4-pyhesai-wrapper"
 
 if ! run_step "[15/16] Install latest stretch4 packages" "$PIP_CMD"; then
     errors+=("[15/16] Install latest stretch4 packages")
