@@ -123,7 +123,7 @@ echo "  [12] Remove RustDesk remote desktop config and history"
 echo "  [13] Clear system trash (~/.local/share/Trash)"
 echo "  [14] Uninstall the production-tools pip package"
 echo "  [15] Install latest stretch4 packages"
-echo "  [16] Remove production repos in ~/repos (keep stretch4_pyhesai_wrapper) — runs last"
+echo "  [16] Remove production repos in ~/repos — runs last"
 echo ""
 confirm "Are you sure you want to continue?" || { echo "Exiting."; exit 0; }
 
@@ -422,7 +422,6 @@ section "Step 16 / 16 — Removing production repos"
 cd "$HOME"
 
 REPO_DEL_CMD="find ~/repos -maxdepth 1 -mindepth 1"
-REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_pyhesai_wrapper'"
 REPO_DEL_CMD="$REPO_DEL_CMD -exec rm -rf {} +"
 
 if ! run_step "[16/16] Remove production repos in ~/repos" "$REPO_DEL_CMD"; then
