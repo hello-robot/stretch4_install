@@ -49,6 +49,7 @@ if [ -n "$CREATE_USER" ]; then
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
     sudo mkdir -p "/home/$CREATE_USER/stretch4_install"
     sudo cp -r "$SCRIPT_DIR/." "/home/$CREATE_USER/stretch4_install/"
+    sudo rm -rf "/home/$CREATE_USER/stretch4_install/stretch_venv/.pixi"
     sudo chown -R "$CREATE_USER:$CREATE_USER" "/home/$CREATE_USER/stretch4_install"
     
     echo "Switching execution to $CREATE_USER..."
@@ -104,14 +105,15 @@ else
     echo "######################" >> ~/.bashrc
     echo "export HELLO_FLEET_PATH=${HOME}/stretch_user" >> ~/.bashrc
     echo "export HELLO_FLEET_ID=${HELLO_FLEET_ID}">> ~/.bashrc
-    echo "export PATH=\${PATH}:~/.local/bin" >> ~/.bashrc
+    echo "export PATH=\${PATH}:~/.local/bin:~/.pixi/bin" >> ~/.bashrc
     echo "export LRS_LOG_LEVEL=None #Debug" >> ~/.bashrc
     echo "export PYTHONWARNINGS='ignore:setup.py install is deprecated,ignore:Invalid dash-separated options,ignore:pkg_resources is deprecated as an API,ignore:Usage of dash-separated'" >> ~/.bashrc
     if [[ $factory_osdir = "24.04" ]]; then
-        echo "export PIP_BREAK_SYSTEM_PACKAGES=1" >> ~/.bashrc
         echo "export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> ~/.bashrc
-        echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
     fi
+
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    bash "$SCRIPT_DIR/stretch_venv/update_bashrc.sh"
 fi
 
 
@@ -136,7 +138,7 @@ else
     if [ "$USER" != "hello-robot" ]; then
         echo "Non-hello-robot user detected. Attempting to copy calibration data from hello-robot account..."
         SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-        if [ -f "$SCRIPT_DIR/stretch_copy_calibration.sh" ] && sudo "$SCRIPT_DIR/stretch_copy_calibration.sh" --force -u "$USER"; then
+        if [ -f "$SCRIPT_DIR/factory/$factory_osdir/stretch_copy_calibration.sh" ] && sudo "$SCRIPT_DIR/factory/$factory_osdir/stretch_copy_calibration.sh" --force -u "$USER"; then
             echo "Successfully copied calibration data from hello-robot."
         else
             echo "Failed to copy hello-robot calibration data or copy utility not found. Falling back to factory defaults..."
@@ -175,8 +177,9 @@ chmod +x ~/.config/autostart/stretch_gamepad_teleop.desktop
 echo "Updating media assets..."
 sudo cp $HOME/stretch4_install/factory/$factory_osdir/stretch_about.png /etc/hello-robot
 
-echo "Install uv"
-curl -LsSf https://astral.sh/uv/install.sh | sh &>> $REDIRECT_LOGFILE
+echo "Install pixi"
+curl -fsSL https://pixi.sh/install.sh | sh &>> $REDIRECT_LOGFILE
+export PATH="${HOME}/.pixi/bin:${PATH}"
 
 echo "Adding user to the dialout group to access Arduino..."
 sudo adduser $USER dialout >> $REDIRECT_LOGFILE
@@ -195,50 +198,8 @@ sudo adduser $USER users >> $REDIRECT_LOGFILE
 echo ""
 
 if [[ $factory_osdir = "24.04" ]]; then
-    echo "Disabling audio suppression"
-    python3 $HOME/stretch4_install/factory/$factory_osdir/hello_robot_audio_disable_suspension.py &>> $REDIRECT_LOGFILE
-    
-    export PIP_BREAK_SYSTEM_PACKAGES=1
-    echo "###########################################"
-    echo "INSTALLATION OF USER LEVEL PIP3 PACKAGES"
-    echo "###########################################"
-    echo "Upgrade pip3"
-    python3 -m pip -q install --no-warn-script-location --user --upgrade pip &>> $REDIRECT_LOGFILE
-    echo "Clear pip cache"
-    python3 -m pip cache purge &>> $REDIRECT_LOGFILE
-    
-    echo "Install Stretch4 URDF"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch Flying Gripper"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch4 Body"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch 4 Tray"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch4 PyHesai Wrapper"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
-
-    # # TODO: doesn't work in a fresh install currently, needs investigation
-    # echo "###########################################"
-    # echo "INSTALLING SERVICES"
-    # echo "###########################################"
-    # if [ -z "$IS_SECONDARY_USER_INSTALL" ]; then
-    #     echo "Install the services"
-    #     "$HOME/stretch4_install/factory/$factory_osdir/background_services_installer.sh" &>> $REDIRECT_LOGFILE
-    # else
-    #     echo "========================================================================"
-    #     echo "This installation was run automatically to run on a different user account."
-    #     if [[ $factory_osdir = "24.04" ]]; then
-    #         echo "Configuring automatic service installation on first login."
-    #         echo -e "\n# Run service install once on first login\nbash ~/stretch4_install/factory/24.04/background_services_installer.sh --auto-startup &" >> "$HOME/.bashrc"
-    #     fi
-    #     echo "========================================================================"
-    #     echo ""
-    # fi
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    "$SCRIPT_DIR/stretch_update_user.sh" -l "$REDIRECT_LOGDIR"
 fi
 
 

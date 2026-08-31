@@ -1,0 +1,101 @@
+[project]
+name = "stretch4-venv"
+version = "0.1.0"
+description = "Encapsulated python environment for Stretch 4"
+requires-python = ">=3.12"
+dependencies = [
+    "hello-robot-stretch4-urdf",
+    "hello-robot-stretch4-body",
+    "hello-robot-stretch4-flying-gripper",
+    "hello-robot-stretch4-tray",
+    "hello-robot-stretch4-pyhesai-wrapper",
+]
+
+[tool.pixi.workspace]
+# ROS 2 Jazzy comes from RoboStack, not from apt. The RoboStack channel is
+# listed first so its `ros-jazzy-*` packages win; it contains nothing else.
+channels = ["https://prefix.dev/robostack-jazzy", "conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.system-requirements]
+libc = "2.39"
+
+[tool.pixi.dependencies]
+python = "3.12.*"
+cmake = "*"
+ninja = "*"
+compilers = "*"
+pkg-config = "*"
+ccache = "*"
+pip = "*"
+make = "*"
+# NumPy 2 is a hard requirement. It is also what pins RoboStack to its
+# `np2py312*` build variants; the older `np126py312*` builds cap numpy at
+# <2.0a0 and would be selected if this constraint were relaxed.
+numpy = ">=2.0.0,<3.0.0"
+lark = "*"
+empy = "3.3.4"
+transforms3d = "*"
+seaborn = "*"
+
+# --- ROS 2 build & workspace tooling (replaces ros-dev-tools from apt) ---
+colcon-common-extensions = "*"
+# colcon's `--symlink-install` runs `setup.py develop --editable
+# --build-directory ...`, and setuptools 80 removed both of those options from
+# the develop command (79.0.1 has them, 80.0.0 does not), which fails every
+# ament_python package with "option --editable not recognized". colcon-core
+# >=0.20.0 declares `setuptools <80` for exactly this reason, so requiring it
+# here is what keeps setuptools on a compatible version. Ubuntu's ROS debs never
+# hit this because noble ships setuptools 68.
+colcon-core = ">=0.20.0"
+rosdep = "*"
+vcstool = "*"
+
+# --- ROS 2 Jazzy core (RoboStack) ---
+# ros2-distro-mutex selects the distro-wide ABI pinset. jazzy_18 and newer are
+# the numpy-2 build series; do not lower this bound without re-checking numpy.
+ros2-distro-mutex = ">=0.15.0"
+ros-jazzy-desktop-full = "*"
+ros-jazzy-rmw-zenoh-cpp = "*"
+ros-jazzy-ros-workspace = "*"
+
+# --- Additional ROS 2 packages Stretch needs at runtime ---
+ros-jazzy-urdfdom-py = "*"
+ros-jazzy-joint-state-publisher-gui = "*"
+ros-jazzy-imu-tools = "*"
+ros-jazzy-imu-filter-madgwick = "*"
+ros-jazzy-robot-localization = "*"
+ros-jazzy-teleop-twist-keyboard = "*"
+
+# --- Dependencies of the packages built in ~/ament_ws ---
+# These were previously pulled in by `rosdep install` from apt.
+ros-jazzy-ament-cmake-mypy = "*"
+ros-jazzy-control-msgs = "*"
+ros-jazzy-diagnostic-aggregator = "*"
+ros-jazzy-diagnostic-updater = "*"
+ros-jazzy-launch-pytest = "*"
+ros-jazzy-nav2-amcl = "*"
+ros-jazzy-nav2-bringup = "*"
+ros-jazzy-nav2-common = "*"
+ros-jazzy-nav2-lifecycle-manager = "*"
+ros-jazzy-nav2-map-server = "*"
+ros-jazzy-nav2-msgs = "*"
+ros-jazzy-nav2-planner = "*"
+ros-jazzy-nav2-util = "*"
+ros-jazzy-nav2-voxel-grid = "*"
+ros-jazzy-realsense2-camera = "*"
+ros-jazzy-realsense2-description = "*"
+ros-jazzy-rosbridge-server = "*"
+ros-jazzy-rosbridge-suite = "*"
+ros-jazzy-rplidar-ros = "*"
+ros-jazzy-slam-toolbox = "*"
+ros-jazzy-tf-transformations = "*"
+ros-jazzy-usb-cam = "*"
+
+[tool.pixi.pypi-dependencies]
+stretch4-venv = { path = ".", editable = true }
+# Satisfies the 'python-pytorch-pip' rosdep key of stretch_deep_perception,
+# which rosdep used to pip-install into ~/.local. CPU-only: the Stretch has
+# Intel graphics, so the ~3GB of nvidia-* wheels in the default PyPI torch
+# build can never be used.
+torch = { version = "*", index = "https://download.pytorch.org/whl/cpu" }

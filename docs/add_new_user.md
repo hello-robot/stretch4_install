@@ -46,7 +46,7 @@ The `stretch_copy_calibration.sh` script supports the following command-line fla
 If you ever need to manually copy or sync the calibration files from the `hello-robot` account to a new user account later, you can run the utility script with `sudo` at any time:
 
 ```{.bash .shell-prompt .copy}
-sudo ~/stretch4_install/stretch_copy_calibration.sh -u new_developer_name
+sudo ~/stretch4_install/factory/24.04/stretch_copy_calibration.sh -u new_developer_name
 ```
 
 Your new user account is now set up successfully!

@@ -97,7 +97,14 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 # We redirect stderr to stdout to capture all output
 # The script will exit with non-zero code on failure, causing the build to fail
 RUN cd /home/hello-robot/stretch4_install && \
-    bash -c 'yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; exit ${PIPESTATUS[1]}'
+    set +o pipefail && \
+    yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; \
+    if [ ${PIPESTATUS[1]} -ne 0 ]; then \
+        echo "=== INSTALLATION FAILED ==="; \
+        echo "=== STRETCH_CREATE_AMENT_WORKSPACE REDIRECT LOG ==="; \
+        cat /home/hello-robot/stretch_user/log/*/*_redirected.txt || true; \
+        exit 1; \
+    fi
 
 # Verify that the FLEET_ID was properly configured in both locations
 RUN if [ ! -f /etc/hello-robot/hello-robot.conf ]; then \
@@ -115,9 +122,18 @@ RUN if [ ! -f /etc/hello-robot/hello-robot.conf ]; then \
     fi && \
     echo "SUCCESS: FLEET_ID properly configured in all required locations"
 
-# Run the secondary user installation test
 RUN cd /home/hello-robot/stretch4_install && \
-    ./stretch_new_user_install.sh -u second_user
+    if ! ./stretch_new_user_install.sh -u second_user; then \
+        echo "=== SECONDARY USER INSTALLATION FAILED ==="; \
+        echo "=== REDIRECT LOG ==="; \
+        ls -la /home/hello-robot/stretch_user/log/ || true; \
+        cat /home/hello-robot/stretch_user/log/*_redirected.txt || true; \
+        cat /home/hello-robot/stretch_user/log/*/*_redirected.txt || true; \
+        sudo ls -la /home/second_user/stretch_user/log/ || true; \
+        sudo cat /home/second_user/stretch_user/log/*_redirected.txt || true; \
+        sudo cat /home/second_user/stretch_user/log/*/*_redirected.txt || true; \
+        exit 1; \
+    fi
 
 USER root
 
