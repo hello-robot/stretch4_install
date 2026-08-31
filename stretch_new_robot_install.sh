@@ -2,7 +2,6 @@
 set -o pipefail
 
 do_factory_install='false'
-do_update='false'
 do_golden_image_setup='false'
 hello_fleet_id=''
 hello_model=''
@@ -15,7 +14,6 @@ show_help() {
     echo "Options:"
     echo "  -h           Display this help message"
     echo "  -f           Run factory install (Hello Robot HQ only)"
-    echo "  -u           Run system update only"
     echo "  -g           Run golden image setup (Hello Robot HQ only)"
     echo "  -m MODEL     Set model type (stretch-re1, stretch-re2, stretch-se3, stretch-se4)"
     echo "  -i ID        Set 4-digit fleet ID"
@@ -42,9 +40,6 @@ while getopts ":fuhgm:i:H:" opt; do
         f)
             do_factory_install='true'
             ;;
-        u)
-            do_update='true'
-            ;;
         g)
             do_golden_image_setup='true'
             ;;
@@ -67,11 +62,6 @@ while getopts ":fuhgm:i:H:" opt; do
             ;;
     esac
 done
-
-if $do_factory_install && $do_update; then
-    echo "Cannot both do_factory_install and do_update."
-    exit 1
-fi
 
 # Prepare SETUP_FLEET_ID for the child setup scripts
 if [[ -n "$hello_fleet_id" ]]; then
@@ -139,15 +129,7 @@ function echo_failure_help {
     exit 1
 }
 
-if $do_update; then
-    # -u: Only run system update (lightweight repo pull)
-    echo ""
-    cd $HOME/stretch4_install/factory/$factory_osdir
-    ./stretch_system_update.sh -l $logdir |& tee $logfile_update
-    if [ $? -ne 0 ]; then
-        echo_failure_help
-    fi
-elif $do_golden_image_setup; then
+if $do_golden_image_setup; then
     # -g: Run system update + system install + user install + golden image setup
     echo ""
     cd $HOME/stretch4_install/factory/$factory_osdir

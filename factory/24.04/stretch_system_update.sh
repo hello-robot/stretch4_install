@@ -1,4 +1,5 @@
 #!/bin/bash
+# This script is used only for internal (HQ) updates.
 set -o pipefail
 
 repos_dir="$HOME/repos"

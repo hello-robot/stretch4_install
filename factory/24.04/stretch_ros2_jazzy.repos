@@ -19,8 +19,6 @@ repositories:
     type: git
     url: https://github.com/Benjamin-Tan/vision_opencv
     version: use_nanobind
-  # Not packaged by RoboStack, so they are built from source here instead of
-  # being installed as ros-jazzy-* apt packages.
   simple_actions:
     type: git
     url: https://github.com/DLu/simple_actions
