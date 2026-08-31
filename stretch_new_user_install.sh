@@ -138,7 +138,7 @@ else
     if [ "$USER" != "hello-robot" ]; then
         echo "Non-hello-robot user detected. Attempting to copy calibration data from hello-robot account..."
         SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-        if [ -f "$SCRIPT_DIR/stretch_copy_calibration.sh" ] && sudo "$SCRIPT_DIR/stretch_copy_calibration.sh" --force -u "$USER"; then
+        if [ -f "$SCRIPT_DIR/factory/$factory_osdir/stretch_copy_calibration.sh" ] && sudo "$SCRIPT_DIR/factory/$factory_osdir/stretch_copy_calibration.sh" --force -u "$USER"; then
             echo "Successfully copied calibration data from hello-robot."
         else
             echo "Failed to copy hello-robot calibration data or copy utility not found. Falling back to factory defaults..."
