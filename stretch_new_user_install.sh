@@ -198,33 +198,8 @@ sudo adduser $USER users >> $REDIRECT_LOGFILE
 echo ""
 
 if [[ $factory_osdir = "24.04" ]]; then
-    echo "Disabling audio suppression"
-    python3 $HOME/stretch4_install/factory/$factory_osdir/hello_robot_audio_disable_suspension.py &>> $REDIRECT_LOGFILE
-    
-    echo "###########################################"
-    echo "CREATING AND SYNCHRONIZING STRETCH PYTHON VIRTUAL ENVIRONMENT"
-    echo "###########################################"
-    # Call the dedicated setup_venv.sh script to handle virtual environment and package installation
     SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-    bash "$SCRIPT_DIR/stretch_venv/setup_venv.sh" &>> $REDIRECT_LOGFILE
-
-    # # TODO: doesn't work in a fresh install currently, needs investigation
-    # echo "###########################################"
-    # echo "INSTALLING SERVICES"
-    # echo "###########################################"
-    # if [ -z "$IS_SECONDARY_USER_INSTALL" ]; then
-    #     echo "Install the services"
-    #     "$HOME/stretch4_install/factory/$factory_osdir/background_services_installer.sh" &>> $REDIRECT_LOGFILE
-    # else
-    #     echo "========================================================================"
-    #     echo "This installation was run automatically to run on a different user account."
-    #     if [[ $factory_osdir = "24.04" ]]; then
-    #         echo "Configuring automatic service installation on first login."
-    #         echo -e "\n# Run service install once on first login\nbash ~/stretch4_install/factory/24.04/background_services_installer.sh --auto-startup &" >> "$HOME/.bashrc"
-    #     fi
-    #     echo "========================================================================"
-    #     echo ""
-    # fi
+    "$SCRIPT_DIR/stretch_update_user.sh" -l "$REDIRECT_LOGDIR"
 fi
 
 
