@@ -58,6 +58,32 @@ To set up or update the environment:
 That wraps `pixi install` and adds the post-install verification. A first
 install downloads roughly 1.5 GB, most of it ROS 2.
 
+### Developer mode (source checkouts)
+
+By default the Hello Robot packages (`hello-robot-stretch4-body` and friends)
+are installed from PyPI, which is what most users want. To work on them from
+source instead:
+
+```bash
+~/stretch4_install/stretch_update_user.sh --developer
+```
+
+That clones each `hello-robot-stretch4-*` dependency listed in
+`pyproject.toml` into `~/repos` and installs it into the environment with
+`pip install -e`, so edits to the source take effect immediately. The
+repository name is derived from the distribution name — for example
+`hello-robot-stretch4-flying-gripper` comes from
+`hello-robot/stretch4_flying_gripper` — so adding a package here is the only
+place the list needs to change. An existing checkout in `~/repos` is left
+untouched rather than re-cloned.
+
+Add `--ssh` to clone over `git@github.com:hello-robot` instead of HTTPS, which
+is what you want if these repos are private and you authenticate with an SSH
+key (see `factory/setup_git.sh`).
+
+Note that a later `pixi install` can restore the PyPI releases over the
+editable installs; re-run the script with `--developer` to put them back.
+
 ### Activating the Environment
 Interactive shells activate it automatically via the block that
 `update_bashrc.sh` adds to `~/.bashrc`. To drop into a shell with the

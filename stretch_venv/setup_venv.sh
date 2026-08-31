@@ -57,20 +57,7 @@ echo "(ROS 2 Jazzy is ~1.5GB of downloads on a first install; this takes a while
 cd "$SCRIPT_DIR"
 pixi install
 
-# 4. Install local development repositories in editable mode if they exist
-# Note: Pixi handles pypi-dependencies in editable mode via pyproject.toml
-# but we can also manually add them if needed.
-if [ -d "$HOME/repos/stretch4_flying_gripper" ]; then
-    echo "Installing stretch4_flying_gripper in editable mode..."
-    pixi run pip install -e "$HOME/repos/stretch4_flying_gripper"
-fi
-
-if [ -d "$HOME/repos/stretch_tray" ]; then
-    echo "Installing stretch_tray in editable mode..."
-    pixi run pip install -e "$HOME/repos/stretch_tray"
-fi
-
-# 5. Verify the environment. In particular, assert NumPy 2: RoboStack ships both
+# 4. Verify the environment. In particular, assert NumPy 2: RoboStack ships both
 # a numpy-1.26 and a numpy-2 build variant of every ROS package, and silently
 # solving back to the numpy-1.26 variants is the main way this environment can
 # regress. Fail loudly here rather than at runtime.
