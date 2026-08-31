@@ -67,7 +67,7 @@ fi
 
 echo "Apt update..."
 sudo apt-get --yes update >> $REDIRECT_LOGFILE
-echo "Ensuring build tools are present (required for depthai-core/vcpkg)..."
+echo "Ensuring build tools are present..."
 sudo apt-get --yes install build-essential ninja-build >> $REDIRECT_LOGFILE
 
 echo "Purging pip cache..."
@@ -92,10 +92,6 @@ vcs import --input ~/stretch4_install/factory/24.04/stretch_ros2_jazzy.repos &>>
 
 echo "Cloning HesaiLidar_ROS_2.0 submodules..."
 cd $AMENT_WSDIR/src/HesaiLidar_ROS_2.0
-git submodule update --init --recursive &>> $REDIRECT_LOGFILE
-
-echo "Cloning Luxonis depthai submodules..."
-cd $AMENT_WSDIR/src/depthai-core
 git submodule update --init --recursive &>> $REDIRECT_LOGFILE
 
 echo "Fetch ROS packages' dependencies (this might take a while)..."
@@ -126,9 +122,7 @@ cd $AMENT_WSDIR/
 
 echo "Compile the workspace (this might take a while)..."
 pip3 uninstall -y nose &>> $REDIRECT_LOGFILE
-export MAKEFLAGS="-j 4" # the NUC cannot handle the memory intensive build of depthai_core, this and --executor sequential are the best config for getting a successful build.
-colcon build --symlink-install --executor sequential &>> $REDIRECT_LOGFILE
-unset MAKEFLAGS
+colcon build --symlink-install &>> $REDIRECT_LOGFILE
 
 echo "Source setup.bash file..."
 source $AMENT_WSDIR/install/setup.bash

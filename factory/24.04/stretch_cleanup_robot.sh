@@ -123,7 +123,7 @@ echo "  [12] Remove RustDesk remote desktop config and history"
 echo "  [13] Clear system trash (~/.local/share/Trash)"
 echo "  [14] Uninstall the production-tools pip package"
 echo "  [15] Install latest stretch4 packages"
-echo "  [16] Remove production repos in ~/repos (keep stretch4_pyhesai_wrapper) — runs last"
+echo "  [16] Remove production repos in ~/repos — runs last"
 echo ""
 confirm "Are you sure you want to continue?" || { echo "Exiting."; exit 0; }
 
@@ -409,7 +409,7 @@ fi
 # -------------------------------------------------------
 section "Step 15 / 16 — Installing latest stretch4 packages"
 
-PIP_CMD="pip3 install --upgrade hello-robot-stretch4-body hello-robot-stretch4-urdf hello-robot-stretch4-flying-gripper hello-robot-stretch4-tray"
+PIP_CMD="pip3 install --upgrade hello-robot-stretch4-body hello-robot-stretch4-urdf hello-robot-stretch4-flying-gripper hello-robot-stretch4-tray hello-robot-stretch4-pyhesai-wrapper"
 
 if ! run_step "[15/16] Install latest stretch4 packages" "$PIP_CMD"; then
     errors+=("[15/16] Install latest stretch4 packages")
@@ -424,7 +424,6 @@ section "Step 16 / 16 — Removing production repos"
 cd "$HOME"
 
 REPO_DEL_CMD="find ~/repos -maxdepth 1 -mindepth 1"
-REPO_DEL_CMD="$REPO_DEL_CMD ! -name 'stretch4_pyhesai_wrapper'"
 REPO_DEL_CMD="$REPO_DEL_CMD -exec rm -rf {} +"
 
 if ! run_step "[16/16] Remove production repos in ~/repos" "$REPO_DEL_CMD"; then

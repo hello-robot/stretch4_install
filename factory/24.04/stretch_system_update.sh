@@ -68,9 +68,6 @@ export PIP_BREAK_SYSTEM_PACKAGES=1
 # Build tools required for editable installs without isolation (meson-python)
 pip install meson ninja meson-python scikit-build-core pybind11 setuptools wheel --quiet
 
-echo "Installing stretch4_pyhesai_wrapper..."
-pip install -e "$repos_dir/stretch4_pyhesai_wrapper" --no-build-isolation
-
 echo "Installing stretch_production_tools_ii..."
 pip install -e "$repos_dir/stretch_production_tools_ii/python"
 
@@ -79,5 +76,6 @@ pip install -U hello-robot-stretch4-body
 pip install -U hello-robot-stretch4-urdf
 pip install -U hello-robot-stretch4-flying-gripper
 pip install -U hello-robot-stretch4-tray
+pip install -U hello-robot-stretch4-pyhesai-wrapper
 
 echo "Repository updates and pip package installations completed."
