@@ -1,9 +1,6 @@
 #!/bin/bash
 set -o pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/stretch_apt_common.sh"
-
 repos_dir="$HOME/repos"
 mkdir -p "$repos_dir"
 
@@ -46,22 +43,6 @@ update_repo "stretch_firmware_ii" "develop"
 update_repo "stretch_production_tools_ii" "master/main"
 update_repo "stretch_fleet_ii" "master/main"
 update_repo "stretch_production_data_ii" "master/main"
-update_repo "stretch4_pyhesai_wrapper" "master/main"
-
-# System dependencies needed to build stretch4_pyhesai_wrapper's C++ extension
-apt_updated=false
-for pkg in libpcap-dev libssl-dev; do
-    if ! dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "ok installed"; then
-        echo "Installing missing system dependency: $pkg..."
-        if [ "$apt_updated" = false ]; then
-            apt_retry --yes update && apt_updated=true
-        fi
-
-        if ! apt_install "$pkg"; then
-            echo "ERROR: could not install $pkg; the stretch4_pyhesai_wrapper build will likely fail." >&2
-        fi
-    fi
-done
 
 export PIP_BREAK_SYSTEM_PACKAGES=1
 
