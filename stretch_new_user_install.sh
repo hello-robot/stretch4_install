@@ -162,7 +162,7 @@ mkdir -p ~/.config/autostart
 cat << 'EOF' > ~/.config/autostart/stretch_gamepad_teleop.desktop
 [Desktop Entry]
 Type=Application
-Exec=gnome-terminal -- bash -ic "stretch_gamepad_teleop"
+Exec=gnome-terminal -- bash -ic "sleep 60 && stretch_gamepad_teleop"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
