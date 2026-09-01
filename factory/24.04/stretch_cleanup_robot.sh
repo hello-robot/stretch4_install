@@ -394,6 +394,8 @@ fi
 # -------------------------------------------------------
 # Step 14: Uninstall the production-tools pip package
 # -------------------------------------------------------
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
 section "Step 14 / 16 — Uninstalling production-tools pip package"
 
 PIP_UNINSTALL_CMD="pip3 uninstall -y hello-robot-stretch-production-tools-ii 2>/dev/null || true"
