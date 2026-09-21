@@ -7,8 +7,13 @@ if getopts ":l:" opt && [[ $opt == "l" && -d $OPTARG ]]; then
 fi
 REDIRECT_LOGFILE="$REDIRECT_LOGDIR/stretch_install_system.`date '+%Y%m%d%H%M'`_redirected.txt"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/stretch_apt_common.sh"
+
+apt_configure
+
 function install {
-    sudo apt-get install -y "$@" >> $REDIRECT_LOGFILE
+    retry_cmd sudo apt-get install -y "$@" >> $REDIRECT_LOGFILE
 }
 
 echo "###########################################"
@@ -17,8 +22,8 @@ echo "###########################################"
 echo "Apt update & upgrade (this might take a while)"
 sudo apt-add-repository universe -y >> $REDIRECT_LOGFILE
 sudo add-apt-repository -y ppa:kobuk-team/intel-graphics >> $REDIRECT_LOGFILE
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
-sudo apt-get --yes upgrade &>> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes upgrade &>> $REDIRECT_LOGFILE
 echo "Install zip & unzip"
 install zip unzip
 echo "Install Curl"
@@ -50,8 +55,7 @@ install python3-serial
 echo "Install Port Audio"
 install portaudio19-dev
 echo "Install lm-sensors & nvme-cli"
-install lm-sensors
-install nvme-cli
+install lm-sensors nvme-cli
 echo "Install cheese for camera testing"
 install cheese
 echo "Install SSH Server"
@@ -82,14 +86,18 @@ echo "INSTALLATION OF ROS 2 JAZZY"
 echo "###########################################"
 echo "Install ros-apt-source"
 function install_ros_apt_source {
-    export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F'"' '{print $4}')
+    export ROS_APT_SOURCE_VERSION=$(curl -s --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 15 https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F'"' '{print $4}')
     echo $ROS_APT_SOURCE_VERSION
-    curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
+    if [[ -z $ROS_APT_SOURCE_VERSION ]]; then
+        echo "ERROR: could not reach the GitHub API to resolve the ros-apt-source version"
+        return 1
+    fi
+    curl -L --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 15 -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
     sudo dpkg -i /tmp/ros2-apt-source.deb
 }
 install_ros_apt_source &>> $REDIRECT_LOGFILE
 echo "Apt update"
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install ROS 2 Jazzy (this might take a while)"
 install ros-jazzy-desktop-full
 # https://discourse.ros.org/t/ros-developer-tools-now-in-binary-form/29802
@@ -98,8 +106,7 @@ install ros-jazzy-rmw-zenoh-cpp
 echo "Install ROS 2 Dev Tools"
 install ros-dev-tools
 echo "Install colcon"
-install python3-colcon-common-extensions
-install python3-colcon-clean
+install python3-colcon-common-extensions python3-colcon-clean
 echo "Install rosdep"
 install python3-rosdep
 echo "Configure rosdep"
@@ -115,8 +122,7 @@ echo "###########################################"
 echo "INSTALLATION OF ADDITIONAL ROS JAZZY PKGS"
 echo "###########################################"
 echo "Install packages to work with URDFs"
-install liburdfdom-tools meshlab
-install ros-jazzy-urdfdom-py
+install liburdfdom-tools meshlab ros-jazzy-urdfdom-py
 echo "Install joint state GUI package"
 install ros-jazzy-joint-state-publisher-gui
 echo "Install IMU visualization plugin for RViz and IMU filter"
@@ -132,7 +138,8 @@ echo "INSTALLATION OF WEB INTERFACE"
 echo "###########################################"
 echo "Register the nodesource APT server's public key"
 function register_nodesource_apt_server {
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 15 https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
 }
 register_nodesource_apt_server &>> $REDIRECT_LOGFILE
 echo "Add the nodesource APT server to the list of APT respositories"
@@ -142,7 +149,7 @@ function add_nodesource_apt_server {
 }
 add_nodesource_apt_server &>> $REDIRECT_LOGFILE
 echo "Apt update"
-sudo apt-get --yes update >> $REDIRECT_LOGFILE
+retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install NodeJS"
 install nodejs
 # echo "Install PyPCL and PyKDL"
@@ -153,4 +160,4 @@ install nodejs
 echo "Install PM2"
 sudo npm install -g pm2 &>> $REDIRECT_LOGFILE
 echo ""
-
+echo "Installation complete!"

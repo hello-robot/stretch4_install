@@ -44,6 +44,8 @@ update_repo "stretch_production_tools_ii" "master/main"
 update_repo "stretch_fleet_ii" "master/main"
 update_repo "stretch_production_data_ii" "master/main"
 
+export PIP_BREAK_SYSTEM_PACKAGES=1
+
 # Build tools required for editable installs without isolation (meson-python)
 pip install meson ninja meson-python scikit-build-core pybind11 setuptools wheel --quiet
 
