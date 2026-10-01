@@ -66,6 +66,7 @@ ENV LD_PRELOAD=/usr/local/lib/libspoof_getlogin.so
 # Create a non-root user 'hello-robot' with sudo privileges and add them to the users group
 # The installation scripts expect to run as a regular user with sudo access
 RUN useradd -m -s /bin/bash hello-robot && \
+    usermod -aG sudo,users hello-robot && \
     echo "hello-robot ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     echo "%sudo ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
