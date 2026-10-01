@@ -17,7 +17,7 @@ ENV SETUP_FLEET_ID=${SETUP_FLEET_ID}
 ENV USER=hello-robot
 
 # Install basic dependencies required by the installation scripts
-# Including iputils-ping for network connectivity checks and zip for logs packaging
+# Including systemd and dbus packages for init daemon capability inside Docker
 RUN apt-get update && apt-get install -y \
     sudo \
     git \
@@ -28,14 +28,20 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     iputils-ping \
     expect \
+    gcc \
     zip \
     software-properties-common \
     apt-utils \
     iproute2 \
+    systemd \
+    systemd-sysv \
+    dbus \
+    dbus-user-session \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-create necessary directories that don't exist by default in basic Docker images
 # Also mock udevadm, update-initramfs, nmcli, and netplan which are not useful inside Docker or fail/warn in container environments
+# Keep track of the real systemctl by backing it up to /usr/bin/systemctl.real before creating the mock
 RUN mkdir -p /etc/udev/rules.d /etc/modprobe.d /etc/apt/keyrings /etc/netplan && \
     printf '#!/bin/sh\nexit 0\n' > /usr/sbin/update-initramfs && \
     chmod +x /usr/sbin/update-initramfs && \
@@ -45,12 +51,22 @@ RUN mkdir -p /etc/udev/rules.d /etc/modprobe.d /etc/apt/keyrings /etc/netplan &&
     chmod +x /usr/bin/nmcli && \
     printf '#!/bin/sh\nexit 0\n' > /usr/sbin/netplan && \
     chmod +x /usr/sbin/netplan && \
+    if [ -f /usr/bin/systemctl ]; then mv /usr/bin/systemctl /usr/bin/systemctl.real; fi && \
     printf '#!/bin/sh\nexit 0\n' > /usr/bin/systemctl && \
     chmod +x /usr/bin/systemctl
 
-# Create a non-root user 'hello-robot' with sudo privileges
+# Pre-compile a getlogin spoofing library to prevent crash in non-tty environments (e.g. Docker build)
+# The spoofed getlogin() returns NULL if the calling process is 'logname', so logname fails as expected in non-interactive/Docker build environments.
+RUN printf '#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\nchar *getlogin(void) {\n    FILE *f = fopen("/proc/self/comm", "r");\n    if (f) {\n        char comm[64];\n        if (fgets(comm, sizeof(comm), f)) {\n            comm[strcspn(comm, "\\n")] = 0;\n            if (strcmp(comm, "logname") == 0) {\n                fclose(f);\n                return NULL;\n            }\n        }\n        fclose(f);\n    }\n    char *user = getenv("USER");\n    return user ? user : "hello-robot";\n}\n' > /tmp/spoof_getlogin.c && \
+    gcc -shared -fPIC -o /usr/local/lib/libspoof_getlogin.so /tmp/spoof_getlogin.c && \
+    rm /tmp/spoof_getlogin.c
+
+ENV LD_PRELOAD=/usr/local/lib/libspoof_getlogin.so
+
+# Create a non-root user 'hello-robot' with sudo privileges and add them to the users group
 # The installation scripts expect to run as a regular user with sudo access
 RUN useradd -m -s /bin/bash hello-robot && \
+    usermod -aG sudo,users hello-robot && \
     echo "hello-robot ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
     echo "%sudo ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
@@ -95,9 +111,34 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 # Run the installation script with the FLEET_ID environment variable
 # The -H flag passes the complete fleet ID to the script
 # We redirect stderr to stdout to capture all output
-# The script will exit with non-zero code on failure, causing the build to fail
+# Only the install script's exit status (PIPESTATUS[1]) is checked: with pipefail, `yes` exiting
+# on SIGPIPE (141) once the script finishes would otherwise fail the step even on a successful install.
 RUN cd /home/hello-robot/stretch4_install && \
-    bash -c 'yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; exit ${PIPESTATUS[1]}'
+    set +e; \
+    yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; \
+    install_status=${PIPESTATUS[1]}; \
+    set -e; \
+    if [ "$install_status" -ne 0 ]; then \
+        echo "========================================================================"; \
+        echo "INSTALLATION FAILED (exit code $install_status)! SURFACING REDIRECTED LOG FILES:"; \
+        echo "========================================================================"; \
+        for f in /home/hello-robot/stretch_user/log/stretch4_install_*/*redirected.txt; do \
+            if [ -f "$f" ]; then \
+                echo "=== CONTENT OF $f ==="; \
+                cat "$f"; \
+                echo "========================================================================"; \
+            fi; \
+        done; \
+        if [ -d /home/hello-robot/ament_ws/log ]; then \
+            echo "=== COLCON STDERR LOGS (non-empty only) ==="; \
+            find /home/hello-robot/ament_ws/log/ -name "stderr.log" -size +0 | while read -r log_file; do \
+                echo "=== Log: $log_file ==="; \
+                cat "$log_file"; \
+                echo "========================================================================"; \
+            done; \
+        fi; \
+        exit "$install_status"; \
+    fi
 
 # Verify that the FLEET_ID was properly configured in both locations
 RUN if [ ! -f /etc/hello-robot/hello-robot.conf ]; then \
@@ -133,14 +174,30 @@ RUN if [ ! -d /home/second_user/stretch_user/${SETUP_FLEET_ID} ]; then \
     diff -r /home/hello-robot/stretch_user/${SETUP_FLEET_ID} /home/second_user/stretch_user/${SETUP_FLEET_ID} && \
     echo "SUCCESS: Secondary user installation and calibration copy verified"
 
-USER hello-robot
+# Print the installation summary (previously the container's CMD, which now runs systemd)
+RUN echo "Stretch Robot Installation Complete" && \
+    echo "Fleet ID: ${SETUP_FLEET_ID}" && \
+    echo "Configuration verified in:" && \
+    echo "  - /etc/hello-robot/hello-robot.conf" && \
+    echo "  - /home/hello-robot/stretch_user/${SETUP_FLEET_ID}" && \
+    echo "  - /home/second_user/stretch_user/${SETUP_FLEET_ID}"
 
-# Set the default command to display installation success and fleet ID
-CMD ["/bin/bash", "-c", "echo 'Stretch Robot Installation Complete' && \
-     echo 'Fleet ID: '${SETUP_FLEET_ID} && \
-     echo 'Configuration verified in:' && \
-     echo '  - /etc/hello-robot/hello-robot.conf' && \
-     echo '  - /home/hello-robot/stretch_user/'${SETUP_FLEET_ID} && \
-     echo '  - /home/second_user/stretch_user/'${SETUP_FLEET_ID} && \
-     /bin/bash"]
+# Restore the real systemctl and set up lingering/systemd configuration
+RUN if [ -f /usr/bin/systemctl.real ]; then \
+        rm -f /usr/bin/systemctl && \
+        mv /usr/bin/systemctl.real /usr/bin/systemctl; \
+    fi && \
+    mkdir -p /var/lib/systemd/linger && \
+    touch /var/lib/systemd/linger/hello-robot && \
+    systemctl mask \
+        systemd-logind.service \
+        getty.target \
+        console-getty.service \
+        sys-fs-fuse-connections.mount
+
+ENV container=docker
+STOPSIGNAL SIGRTMIN+3
+
+# Set the default command to run systemd init daemon
+CMD ["/lib/systemd/systemd", "--log-level=info", "--log-target=journal"]
 
