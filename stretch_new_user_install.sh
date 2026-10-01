@@ -222,16 +222,16 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch4 PyHesai Wrapper"
     python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
 
-    echo "Check Lidar PTP Grandmaster"
+    echo "Check Lidar PTP Grandmaster and Lidar Configuration"
     # Invoked via python3 -m since ~/.local/bin may not be on PATH yet
     PTP_MANAGER="python3 -m stretch4_pyhesai_wrapper.tools.REx_ptp_manager"
     if ! python3 -c "import stretch4_pyhesai_wrapper.tools.REx_ptp_manager" &>> $REDIRECT_LOGFILE; then
         echo "REx_ptp_manager not available in the installed stretch4_pyhesai_wrapper, skipping PTP setup."
     elif $PTP_MANAGER --status &>> $REDIRECT_LOGFILE; then
-        echo "Lidar PTP grandmaster already configured."
+        echo "Lidar PTP grandmaster and lidar configuration already set up."
     elif [ -t 0 ]; then
         $PTP_MANAGER --status || true
-        read -p "Lidar PTP grandmaster is not configured. Run REx_ptp_manager --install now? [Y/n] " response
+        read -p "Lidar PTP grandmaster or lidar configuration is not set up. Run REx_ptp_manager --install now? [Y/n] " response
         if [[ ! "$response" =~ ^[Nn]$ ]]; then
             if $PTP_MANAGER --install 2>&1 | tee -a $REDIRECT_LOGFILE; [ ${PIPESTATUS[0]} -ne 0 ]; then
                 echo "WARNING: REx_ptp_manager --install failed. Run 'REx_ptp_manager --install' later to synchronize the lidars."
