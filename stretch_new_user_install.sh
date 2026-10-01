@@ -207,19 +207,22 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Clear pip cache"
     python3 -m pip cache purge &>> $REDIRECT_LOGFILE
     
-    echo "Install Stretch4 URDF"
+    echo "Install Stretch 4 URDF"
     python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch Flying Gripper"
     python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
+    
+    echo "Install Stretch 4 Kinematics"
+    python3 -m pip -q install --upgrade hello-robot-stretch4-kinematics &>> $REDIRECT_LOGFILE
 
-    echo "Install Stretch4 Body"
+    echo "Install Stretch 4 Body"
     python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
 
     echo "Install Stretch 4 Tray"
     python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
 
-    echo "Install Stretch4 PyHesai Wrapper"
+    echo "Install Stretch 4 PyHesai Wrapper"
     python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
 
     # # TODO: doesn't work in a fresh install currently, needs investigation
