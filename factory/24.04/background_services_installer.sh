@@ -21,6 +21,11 @@ run_install() {
     else
         ~/.local/bin/stretch_body_server --daemon
     fi
+    # stretch_body_server exits 0 without installing if the user isn't in an active 'users' group
+    if [ ! -f "$HOME/.config/systemd/user/stretch_body_server.service" ]; then
+        echo "ERROR: Stretch Body Server service file was not created. Is $USER in the 'users' group (log out and back in after adding)?"
+        return 1
+    fi
 
     echo "Installing and starting the Stretch Tray"
     ~/.local/bin/stretch_tray --install
