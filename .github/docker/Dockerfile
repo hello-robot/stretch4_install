@@ -110,11 +110,16 @@ SHELL ["/bin/bash", "-e", "-o", "pipefail", "-c"]
 # Run the installation script with the FLEET_ID environment variable
 # The -H flag passes the complete fleet ID to the script
 # We redirect stderr to stdout to capture all output
-# The script will exit with non-zero code on failure, causing the build to fail
+# Only the install script's exit status (PIPESTATUS[1]) is checked: with pipefail, `yes` exiting
+# on SIGPIPE (141) once the script finishes would otherwise fail the step even on a successful install.
 RUN cd /home/hello-robot/stretch4_install && \
-    if ! yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; then \
+    set +e; \
+    yes | ./stretch_new_robot_install.sh -H ${SETUP_FLEET_ID} 2>&1 | tee /home/hello-robot/stretch_user/log/docker_install.log; \
+    install_status=${PIPESTATUS[1]}; \
+    set -e; \
+    if [ "$install_status" -ne 0 ]; then \
         echo "========================================================================"; \
-        echo "INSTALLATION FAILED! SURFACING REDIRECTED LOG FILES:"; \
+        echo "INSTALLATION FAILED (exit code $install_status)! SURFACING REDIRECTED LOG FILES:"; \
         echo "========================================================================"; \
         for f in /home/hello-robot/stretch_user/log/stretch4_install_*/*redirected.txt; do \
             if [ -f "$f" ]; then \
@@ -124,14 +129,14 @@ RUN cd /home/hello-robot/stretch4_install && \
             fi; \
         done; \
         if [ -d /home/hello-robot/ament_ws/log ]; then \
-            echo "=== COLCON FAILURE LOGS ==="; \
-            find /home/hello-robot/ament_ws/log/ -name "stderr.log" -o -name "stdout.log" | while read -r log_file; do \
+            echo "=== COLCON STDERR LOGS (non-empty only) ==="; \
+            find /home/hello-robot/ament_ws/log/ -name "stderr.log" -size +0 | while read -r log_file; do \
                 echo "=== Log: $log_file ==="; \
                 cat "$log_file"; \
                 echo "========================================================================"; \
             done; \
         fi; \
-        exit 1; \
+        exit "$install_status"; \
     fi
 
 # Verify that the FLEET_ID was properly configured in both locations
@@ -168,7 +173,13 @@ RUN if [ ! -d /home/second_user/stretch_user/${SETUP_FLEET_ID} ]; then \
     diff -r /home/hello-robot/stretch_user/${SETUP_FLEET_ID} /home/second_user/stretch_user/${SETUP_FLEET_ID} && \
     echo "SUCCESS: Secondary user installation and calibration copy verified"
 
-USER root
+# Print the installation summary (previously the container's CMD, which now runs systemd)
+RUN echo "Stretch Robot Installation Complete" && \
+    echo "Fleet ID: ${SETUP_FLEET_ID}" && \
+    echo "Configuration verified in:" && \
+    echo "  - /etc/hello-robot/hello-robot.conf" && \
+    echo "  - /home/hello-robot/stretch_user/${SETUP_FLEET_ID}" && \
+    echo "  - /home/second_user/stretch_user/${SETUP_FLEET_ID}"
 
 # Restore the real systemctl and set up lingering/systemd configuration
 RUN if [ -f /usr/bin/systemctl.real ]; then \
@@ -189,15 +200,3 @@ STOPSIGNAL SIGRTMIN+3
 # Set the default command to run systemd init daemon
 CMD ["/lib/systemd/systemd", "--log-level=info", "--log-target=journal"]
 
-
-# USER hello-robot
-
-# Set the default command to display installation success and fleet ID
-# CMD ["/bin/bash", "-c", "echo 'Stretch Robot Installation Complete' && \
-#      echo 'Fleet ID: '${SETUP_FLEET_ID} && \
-#      echo 'Configuration verified in:' && \
-#      echo '  - /etc/hello-robot/hello-robot.conf' && \
-#      echo '  - /home/hello-robot/stretch_user/'${SETUP_FLEET_ID} && \
-#      echo '  - /home/second_user/stretch_user/'${SETUP_FLEET_ID} && \
-#      /bin/bash"]
-# Switch to root to restore systemctl and configure systemd
