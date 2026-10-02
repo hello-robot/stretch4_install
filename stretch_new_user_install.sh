@@ -222,6 +222,9 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch4 PyHesai Wrapper"
     python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
 
+    echo "Install Stretch 4 Kinematics"
+    python3 -m pip -q install --upgrade hello-robot-stretch4-kinematics &>> $REDIRECT_LOGFILE
+
     # # TODO: doesn't work in a fresh install currently, needs investigation
     # echo "###########################################"
     # echo "INSTALLING SERVICES"
