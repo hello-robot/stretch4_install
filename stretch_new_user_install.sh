@@ -222,7 +222,15 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch4 PyHesai Wrapper"
     python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
 
-    echo "Check Lidar PTP Grandmaster and Lidar Configuration"
+    echo "Install Stretch 4 Kinematics"
+    python3 -m pip -q install --upgrade hello-robot-stretch4-kinematics &>> $REDIRECT_LOGFILE
+
+
+    echo ""
+    echo "###########################################"
+    echo "CHECKING LIDAR PTP GRANDMASTER and LIDAR CONFIGURATION"
+    echo "###########################################"
+    echo ""
     # Invoked via python3 -m since ~/.local/bin may not be on PATH yet
     PTP_MANAGER="python3 -m stretch4_pyhesai_wrapper.tools.REx_ptp_manager"
     if ! python3 -c "import stretch4_pyhesai_wrapper.tools.REx_ptp_manager" &>> $REDIRECT_LOGFILE; then

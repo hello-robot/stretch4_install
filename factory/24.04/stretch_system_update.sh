@@ -58,5 +58,6 @@ pip install -U hello-robot-stretch4-urdf
 pip install -U hello-robot-stretch4-flying-gripper
 pip install -U hello-robot-stretch4-tray
 pip install -U hello-robot-stretch4-pyhesai-wrapper
+pip install -U hello-robot-stretch4-kinematics
 
 echo "Repository updates and pip package installations completed."
