@@ -225,6 +225,32 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Install Stretch 4 Kinematics"
     python3 -m pip -q install --upgrade hello-robot-stretch4-kinematics &>> $REDIRECT_LOGFILE
 
+
+    echo ""
+    echo "###########################################"
+    echo "CHECKING LIDAR PTP GRANDMASTER and LIDAR CONFIGURATION"
+    echo "###########################################"
+    echo ""
+    # Invoked via python3 -m since ~/.local/bin may not be on PATH yet
+    PTP_MANAGER="python3 -m stretch4_pyhesai_wrapper.tools.REx_ptp_manager"
+    if ! python3 -c "import stretch4_pyhesai_wrapper.tools.REx_ptp_manager" &>> $REDIRECT_LOGFILE; then
+        echo "REx_ptp_manager not available in the installed stretch4_pyhesai_wrapper, skipping PTP setup."
+    elif $PTP_MANAGER --status &>> $REDIRECT_LOGFILE; then
+        echo "Lidar PTP grandmaster and lidar configuration already set up."
+    elif [ -t 0 ]; then
+        $PTP_MANAGER --status || true
+        read -p "Lidar PTP grandmaster or lidar configuration is not set up. Run REx_ptp_manager --install now? [Y/n] " response
+        if [[ ! "$response" =~ ^[Nn]$ ]]; then
+            if $PTP_MANAGER --install 2>&1 | tee -a $REDIRECT_LOGFILE; [ ${PIPESTATUS[0]} -ne 0 ]; then
+                echo "WARNING: REx_ptp_manager --install failed. Run 'REx_ptp_manager --install' later to synchronize the lidars."
+            fi
+        else
+            echo "Skipping. Run 'REx_ptp_manager --install' later to synchronize the lidars."
+        fi
+    else
+        echo "Non-interactive environment detected, skipping PTP setup. Run 'REx_ptp_manager --install' later to synchronize the lidars."
+    fi
+
     # # TODO: doesn't work in a fresh install currently, needs investigation
     # echo "###########################################"
     # echo "INSTALLING SERVICES"
