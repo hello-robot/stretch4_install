@@ -126,9 +126,6 @@ colcon build --symlink-install &>> $REDIRECT_LOGFILE
 
 echo "Source setup.bash file..."
 source $AMENT_WSDIR/install/setup.bash
-echo "Updating port privledges..."
-sudo sysctl -w net.ipv4.ip_unprivileged_port_start=80 &>> $REDIRECT_LOGFILE
-echo net.ipv4.ip_unprivileged_port_start=80 | sudo tee --append /etc/sysctl.d/99-sysctl.conf &>> $REDIRECT_LOGFILE
 echo "Update ~/.bashrc dotfile to source workspace..."
 echo "source $AMENT_WSDIR/install/setup.bash" >> ~/.bashrc
 echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc

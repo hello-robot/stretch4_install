@@ -80,6 +80,16 @@ echo "Install Intel GPU dependencies"
 install intel-gpu-tools intel-media-va-driver-non-free libva-glx2 va-driver-all vainfo intel-opencl-icd
 echo ""
 
+echo "###########################################"
+echo "CONFIGURATION OF SYSTEM SETTINGS"
+echo "###########################################"
+echo "Raise UDP receive buffer limit for the Hesai lidar"
+echo 'net.core.rmem_max=262144000' | sudo tee /etc/sysctl.d/90-hesai.conf >> $REDIRECT_LOGFILE
+echo "Allow non-root users to bind ports 80 and above (for web teleop)"
+echo 'net.ipv4.ip_unprivileged_port_start=80' | sudo tee /etc/sysctl.d/90-unprivileged-ports.conf >> $REDIRECT_LOGFILE
+sudo sysctl --system >> $REDIRECT_LOGFILE
+echo ""
+
 # https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html
 echo "###########################################"
 echo "INSTALLATION OF ROS 2 JAZZY"
