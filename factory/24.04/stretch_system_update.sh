@@ -61,3 +61,6 @@ pip install -U hello-robot-stretch4-pyhesai-wrapper
 pip install -U hello-robot-stretch4-kinematics
 
 echo "Repository updates and pip package installations completed."
+
+echo "Applying the NUC settings list..."
+sudo "$HOME/stretch4_install/stretch_apply_settings.sh" --apply || echo "Some NUC settings did not apply. Run: stretch_apply_settings --check"

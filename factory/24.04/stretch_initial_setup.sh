@@ -152,8 +152,8 @@ gsettings set org.gnome.desktop.session idle-delay 0 &> /dev/null || true
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 &> /dev/null || true
 gsettings set org.gnome.settings-daemon.plugins.power idle-dim false &> /dev/null || true
 
-echo "Power button powers off at once (no GNOME dialog)..."
-sudo bash $DIR/hello_powerkey_install.sh
+echo "Applying the NUC settings list (power button and the rest, see stretch_apply_settings --list)..."
+sudo "$DIR/../../stretch_apply_settings.sh" --apply
 
 echo "Setting up motd..."
 if [ -d /etc/update-motd.d/ ]; then

@@ -8,6 +8,24 @@ The stretch4_install repository provides scripts required to install the Stretch
 | [Updating your ROS Workspace](./docs/ros_workspace.md)                                                                    | Creating and compiling a new ROS workspace |
 | [Upgrading your Operating System](./docs/robot_install.md)                                                                      | Installing a new operating system and setting it up with the full Stretch software stack |
 
+## NUC settings: `stretch_apply_settings`
+
+`stretch_apply_settings.sh` is the rerunnable slice of `stretch_initial_setup.sh`: the NUC settings a Stretch 4 must carry, kept as a maintained list of items in `factory/24.04/settings.d/`, one file per setting. It is safe to run at any time, changes only what is missing, and says what it changed. It covers NUC settings only; firmware has `REx_firmware_updater`, the Python packages have pip (`stretch_system_check --check_updates` reports both), and the factory `stretch_system_update.sh` pulls the HQ repos.
+
+| Command | Who | What |
+| --- | --- | --- |
+| `stretch_apply_settings` | anyone | Check every item, one line each with its state (`ok`, `missing`, `unmanaged`). Exit 1 if anything is missing. Read only. |
+| `sudo stretch_apply_settings --apply` | FAB, support | Apply the missing items, check again, report `changed`, `ok` or `failed`. Log in `/var/log/stretch_apply_settings.log`. |
+| `stretch_apply_settings --dry-run` | anyone | What `--apply` would do, nothing changed. |
+| `stretch_apply_settings --json` | tools | Machine readable report (`items[].id`, `state`, `reason`, `changed`, a `summary` and the `action` to run). |
+| `sudo stretch_apply_settings --revert ID` | support | Undo one item where that is cheap (drop-ins removed, nothing else touched). |
+
+`--only ID` limits any mode to one item; `--list` names the items. `stretch_initial_setup.sh` runs `--apply` on a new install, which also places the `/usr/local/bin/stretch_apply_settings` link, so the command works from any directory afterwards. Before that, or from another checkout, run `~/stretch4_install/stretch_apply_settings.sh`.
+
+Support asks a customer to run `~/stretch4_install/stretch_apply_settings.sh` (after `git -C ~/stretch4_install pull`) and send the output, then `sudo ~/stretch4_install/stretch_apply_settings.sh --apply` when something is missing.
+
+Adding an item: copy `factory/24.04/settings.d/10-powerkey.sh` to `NN-<id>.sh`. The file is sourced by the runner and defines `ITEM_DESC` and four functions: `check` (prints one line and exits 0 when present and correct, 1 when missing or different, 3 when the item is listed but not managed here yet), `plan` (prints what apply would do), `apply` (idempotent, runs under `set -e`, prints what it did) and, where cheap, `revert`. Prefix every path with `$SAS_ROOT` (empty on a robot, a fake root in the tests) and write only files you own: drop-ins, unit files, keyfiles, never edits to a file another package owns. Run `tests/test_apply_settings.sh` (no root needed) and shellcheck before opening the PR.
+
 ## Contributing
 
 Thank you for considering contributing to this repo! Please take a look at the [contribution guide](./docs/contributing.md) for more details.
