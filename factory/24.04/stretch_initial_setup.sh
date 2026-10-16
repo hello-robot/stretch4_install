@@ -152,6 +152,9 @@ gsettings set org.gnome.desktop.session idle-delay 0 &> /dev/null || true
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 &> /dev/null || true
 gsettings set org.gnome.settings-daemon.plugins.power idle-dim false &> /dev/null || true
 
+echo "Power button powers off at once (no GNOME dialog)..."
+sudo bash $DIR/hello_powerkey_install.sh
+
 echo "Setting up motd..."
 if [ -d /etc/update-motd.d/ ]; then
     sudo cp $DIR/motd/00-header /etc/update-motd.d/00-header
