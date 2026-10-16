@@ -1,0 +1,336 @@
+#!/usr/bin/env python3
+"""
+hello-ready-chime: one soft sound from the robot's speaker when the robot is ready.
+
+Started by the hello-ready-chime user unit after stretch_body_server. It watches the
+status the server publishes and plays ready.wav once the robot has been ready for a
+HOLD_S stretch, then exits. Ready means:
+
+  server      status['server']['state'] is RUNNING and status_id advances every poll
+  subsystems  every subsystem the server configured publishes a non-empty status
+  power       status['power_periph'] power_diagnostics power_state_name is STATE_ACTIVE
+              (status_aux current_pwr_state_name if diagnostics are not there yet),
+              no diagnostics transport error, no adapter fault
+  devices     no stepper or PIMU transport read or write error counter rises during
+              the hold, no stepper driver fault, end_of_arm loop RUNNING, no joint
+              hardware_error, no joint comm error counter rising
+
+If that does not hold within CAP_S the chime stays silent, the reason goes to the
+journal and the unit fails: silence means look at the robot. A pressed runstop is
+not a fault; it is noted, the chime still plays.
+
+Reads the status socket only (a SUB socket, same pattern as the body's
+server_status_reader): it never opens a RobotClient, which would send motion
+related commands when it closes, and never a device file.
+
+    hello-ready-chime            wait for ready, play once (what the unit runs)
+    hello-ready-chime --test     play now
+    hello-ready-chime --check    report the readiness decision, play nothing
+"""
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+STATUS_SOCKET = '/tmp/stretch_zmq/port_status'
+WAV = '/usr/local/share/hello-robot/sounds/ready.wav'
+HOLD_S = 2.0
+CAP_S = 90.0
+POLL_S = 0.1
+VOLUME = 0.8
+# keys of the status dict that are not subsystems; pimu and base are the legacy names
+# the server publishes beside power_periph and omnibase
+NOT_SUBSYSTEMS = ('server', 'routines', 'safety_layer', 'pimu', 'base')
+POWER_ACTIVE = 'STATE_ACTIVE'
+
+
+def say(text):
+    print(text, flush=True)
+
+
+# ---------------------------------------------------------------- the decision
+def _transport_errors(transport):
+    """Sum of the read and write error counters of a device transport dict."""
+    total = 0
+    if not isinstance(transport, dict):
+        return 0
+    for lane in ('sync', 'async'):
+        d = transport.get(lane)
+        if isinstance(d, dict):
+            total += int(d.get('read_error') or 0) + int(d.get('write_error') or 0)
+    return total
+
+
+def devices_of(status):
+    """(path, dict) of every device status: a dict carrying a 'transport' key, at most two
+    levels down (power_periph, arm.motor, omnibase.wheel_0, ...)."""
+    found = []
+    for name, sub in status.items():
+        if name in NOT_SUBSYSTEMS or not isinstance(sub, dict):
+            continue
+        if 'transport' in sub:
+            found.append((name, sub))
+        for k, v in sub.items():
+            if isinstance(v, dict) and 'transport' in v:
+                found.append(('%s.%s' % (name, k), v))
+    return found
+
+
+def _comm_errors(joint):
+    ce = joint.get('comm_errors')
+    if not isinstance(ce, dict):
+        return 0
+    return int(ce.get('n_rx') or 0) + int(ce.get('n_tx') or 0)
+
+
+def judge(status, prev=None):
+    """Why the robot is not ready right now, as a list of reasons. Empty means ready.
+    prev is the previous sample, used for 'is the stream flowing' and 'did an error
+    counter rise'."""
+    reasons = []
+    if not isinstance(status, dict) or not status:
+        return ['no status']
+    server = status.get('server')
+    if not isinstance(server, dict):
+        return ['status carries no server block']
+    if server.get('state') != 'RUNNING':
+        reasons.append('server state %s' % server.get('state'))
+    if isinstance(prev, dict) and isinstance(prev.get('server'), dict):
+        if not (server.get('status_id', 0) > prev['server'].get('status_id', 0)):
+            reasons.append('status not advancing')
+
+    for name, sub in status.items():
+        if name in NOT_SUBSYSTEMS:
+            continue
+        if not isinstance(sub, dict) or not sub:
+            reasons.append('%s not reporting' % name)
+
+    pp = status.get('power_periph')
+    if not isinstance(pp, dict):
+        reasons.append('no power board in status')
+    else:
+        pd = pp.get('power_diagnostics')
+        pd = pd if isinstance(pd, dict) else {}
+        aux = pp.get('status_aux')
+        aux = aux if isinstance(aux, dict) else {}
+        state_name = pd.get('power_state_name') or aux.get('current_pwr_state_name')
+        if state_name is None:
+            reasons.append('power board state unknown')
+        elif state_name != POWER_ACTIVE:
+            reasons.append('power board %s' % state_name)
+        meta = pp.get('power_diagnostics_meta')
+        if isinstance(meta, dict) and meta.get('transport_error'):
+            reasons.append('power diagnostics transport error: %s' % meta['transport_error'])
+        if pp.get('adapter_fault'):
+            reasons.append('adapter fault')
+
+    prev_devices = dict(devices_of(prev)) if isinstance(prev, dict) else {}
+    for path, dev in devices_of(status):
+        if dev.get('is_drv_fault'):
+            reasons.append('%s driver fault' % path)
+        if path in prev_devices:
+            if _transport_errors(dev['transport']) > _transport_errors(prev_devices[path].get('transport')):
+                reasons.append('%s transport errors rising' % path)
+
+    eoa = status.get('end_of_arm')
+    if isinstance(eoa, dict) and eoa:
+        loop = eoa.get('loop')
+        if isinstance(loop, dict) and loop.get('state') not in (None, 'RUNNING'):
+            reasons.append('end_of_arm loop %s' % loop.get('state'))
+        prev_eoa = prev.get('end_of_arm') if isinstance(prev, dict) else None
+        for jn in eoa.get('joint_names') or []:
+            j = eoa.get(jn)
+            if not isinstance(j, dict):
+                reasons.append('end_of_arm.%s not reporting' % jn)
+                continue
+            if j.get('hardware_error'):
+                reasons.append('end_of_arm.%s hardware error %s' % (jn, j.get('hardware_error')))
+            if isinstance(prev_eoa, dict) and isinstance(prev_eoa.get(jn), dict):
+                if _comm_errors(j) > _comm_errors(prev_eoa[jn]):
+                    reasons.append('end_of_arm.%s comm errors rising' % jn)
+    return reasons
+
+
+def notes(status):
+    """Things worth a word in the journal that do not block the chime."""
+    out = []
+    pp = status.get('power_periph') if isinstance(status, dict) else None
+    if isinstance(pp, dict) and pp.get('runstop_event'):
+        out.append('runstop pressed')
+    return out
+
+
+class ReadyTracker:
+    """Feed it samples; ready() once judge() has been empty for hold_s without a gap."""
+
+    def __init__(self, hold_s=HOLD_S):
+        self.hold_s = hold_s
+        self.prev = None
+        self.held_since = None
+        self.last_reasons = ['no status yet']
+
+    def feed(self, status, now):
+        reasons = judge(status, self.prev)
+        self.prev = status
+        self.last_reasons = reasons
+        if reasons:
+            self.held_since = None
+            return False
+        if self.held_since is None:
+            self.held_since = now
+        return (now - self.held_since) >= self.hold_s
+
+    def reason(self):
+        return ', '.join(self.last_reasons) if self.last_reasons else 'ready'
+
+
+# ---------------------------------------------------------------- reading the server
+class StatusReader:
+    """SUB on the server's status socket, latest message only. Sends nothing."""
+
+    def __init__(self, path=STATUS_SOCKET):
+        self.path = path
+        self.socket = None
+
+    def read(self, timeout_s):
+        if self.socket is None:
+            if not os.path.exists(self.path):
+                return None
+            import zmq
+            self.socket = zmq.Context.instance().socket(zmq.SUB)
+            self.socket.setsockopt(zmq.LINGER, 0)
+            self.socket.setsockopt(zmq.CONFLATE, 1)
+            self.socket.setsockopt(zmq.SUBSCRIBE, b'')
+            self.socket.connect('ipc://%s' % self.path)
+        import zmq
+        if not self.socket.poll(int(timeout_s * 1000), zmq.POLLIN):
+            return None
+        return self.socket.recv_pyobj(flags=zmq.NOBLOCK)
+
+    def close(self):
+        if self.socket is not None:
+            self.socket.close(linger=0)
+            self.socket = None
+
+
+def wait_until_ready(read, cap_s=CAP_S, hold_s=HOLD_S, poll_s=POLL_S,
+                     now=time.monotonic, sleep=time.sleep, socket_path=STATUS_SOCKET,
+                     exists=os.path.exists):
+    """(ready, reason, elapsed_s). read(timeout_s) returns the latest status or None."""
+    tracker = ReadyTracker(hold_s)
+    t0 = now()
+    reason = 'no status yet'
+    while True:
+        t = now()
+        if t - t0 >= cap_s:
+            return False, reason, t - t0
+        if not exists(socket_path):
+            reason = 'stretch_body_server status socket %s not present' % socket_path
+            tracker = ReadyTracker(hold_s)
+            sleep(poll_s)
+            continue
+        status = read(poll_s)
+        if status is None:
+            reason = 'no status from stretch_body_server'
+            tracker = ReadyTracker(hold_s)
+            continue
+        t = now()
+        if tracker.feed(status, t):
+            extra = notes(status)
+            return True, 'ready' + (' (%s)' % ', '.join(extra) if extra else ''), t - t0
+        reason = tracker.reason()
+        sleep(poll_s)
+
+
+# ---------------------------------------------------------------- playing
+def pick_target():
+    """node.name of the robot's USB speaker sink, or None for the default sink."""
+    try:
+        out = subprocess.run(['pw-dump'], capture_output=True, text=True, timeout=5).stdout
+        nodes = json.loads(out)
+    except Exception:
+        return None
+    sinks = []
+    for node in nodes:
+        props = ((node.get('info') or {}).get('props') or {}) if isinstance(node, dict) else {}
+        if props.get('media.class') == 'Audio/Sink' and props.get('node.name'):
+            sinks.append(props['node.name'])
+    for name in sinks:
+        if 'usb' in name.lower():
+            return name
+    return None
+
+
+def play(wav, volume=VOLUME):
+    """Play the file once, chime volume only; the sink volume is left alone."""
+    if not os.path.exists(wav):
+        say('no sound file at %s' % wav)
+        return False
+    if shutil.which('pw-play'):
+        cmd = ['pw-play', '--volume', '%.2f' % volume]
+        target = pick_target()
+        if target:
+            cmd += ['--target', target]
+        cmd.append(wav)
+        try:
+            rc = subprocess.run(cmd, timeout=30).returncode
+        except Exception as exc:
+            rc = -1
+            say('pw-play failed: %s' % exc)
+        if rc == 0:
+            say('played %s through %s' % (wav, target or 'the default sink'))
+            return True
+        say('pw-play exited %s, trying aplay' % rc)
+    if shutil.which('aplay'):
+        try:
+            rc = subprocess.run(['aplay', '-q', wav], timeout=30).returncode
+        except Exception as exc:
+            rc = -1
+            say('aplay failed: %s' % exc)
+        if rc == 0:
+            say('played %s through aplay' % wav)
+            return True
+    say('could not play %s (no working pw-play or aplay)' % wav)
+    return False
+
+
+# ---------------------------------------------------------------- main
+def build_parser():
+    p = argparse.ArgumentParser(description='Play one soft sound when the robot is ready.')
+    p.add_argument('--test', action='store_true', help='play the chime now, no readiness wait')
+    p.add_argument('--check', action='store_true', help='print the readiness decision, play nothing')
+    p.add_argument('--timeout', type=float, default=CAP_S, help='give up after this many seconds (default %g)' % CAP_S)
+    p.add_argument('--hold', type=float, default=HOLD_S, help='ready must hold this long (default %g s)' % HOLD_S)
+    p.add_argument('--volume', type=float, default=VOLUME, help='chime stream volume 0 to 1 (default %g)' % VOLUME)
+    p.add_argument('--wav', default=WAV, help='sound file (default %s)' % WAV)
+    p.add_argument('--socket', default=STATUS_SOCKET, help='server status socket (default %s)' % STATUS_SOCKET)
+    return p
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    if args.test:
+        return 0 if play(args.wav, args.volume) else 2
+    reader = StatusReader(args.socket)
+    try:
+        ready, reason, elapsed = wait_until_ready(reader.read, cap_s=args.timeout, hold_s=args.hold,
+                                                  socket_path=args.socket)
+    except ImportError as exc:
+        say('cannot read the server status (%s), no chime' % exc)
+        return 1
+    finally:
+        reader.close()
+    if not ready:
+        say('not ready after %.0f s, no chime: %s' % (elapsed, reason))
+        return 1
+    say('%s after %.1f s' % (reason, elapsed))
+    if args.check:
+        return 0
+    return 0 if play(args.wav, args.volume) else 2
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -41,7 +41,8 @@ write_shim dpkg-query "pkg=\${!#}
 if [ -e '$STATE/pkg.'\"\$pkg\" ]; then echo 'install ok installed'; exit 0; fi
 exit 1"
 
-write_shim systemctl "verb=\$1; shift
+write_shim systemctl "while [ \$# -gt 0 ] && [ \"\${1#-}\" != \"\$1\" ]; do case \"\$1\" in -M|--machine) shift ;; esac; shift; done
+verb=\$1; shift
 unit=\${!#}; unit=\${unit%.service}
 case \"\$verb\" in
   enable)  touch '$STATE/enabled.'\"\$unit\"; case \"\$*\" in *--now*) touch '$STATE/active.'\"\$unit\" ;; esac ;;
@@ -142,6 +143,11 @@ LOCK="$ROOT/etc/dconf/db/local.d/locks/hello-powerkey"
 PROFILE="$ROOT/etc/dconf/profile/user"
 LINK="$ROOT/usr/local/bin/stretch_apply_settings"
 LOG="$ROOT/var/log/stretch_apply_settings.log"
+CHIME_WAV="$ROOT/usr/local/share/hello-robot/sounds/ready.wav"
+CHIME_BIN="$ROOT/usr/local/bin/hello-ready-chime"
+CHIME_UNIT="$ROOT/etc/systemd/user/hello-ready-chime.service"
+CHIME_WANT="$ROOT/etc/systemd/user/default.target.wants/hello-ready-chime.service"
+CHIME_SRC="$REPO/factory/24.04/sounds"
 
 echo "fake root: $ROOT"
 echo
@@ -152,8 +158,9 @@ assert_rc 0 "list"
 assert_out '^command ' "list names command"
 assert_out '^powerkey ' "list names powerkey"
 assert_out '^lidar-ptp ' "list names lidar-ptp"
+assert_out '^ready-chime ' "list names ready-chime"
 run "$SAS" --list --json
-assert_json "len(d['items']) == 3 and d['mode'] == 'list'" "list json has 3 items"
+assert_json "len(d['items']) == 4 and d['mode'] == 'list'" "list json has 4 items"
 
 # ---------------------------------------------------------------- fresh system
 run "$SAS"
@@ -161,13 +168,14 @@ assert_rc 1 "fresh check"
 assert_out '^command +missing' "fresh: command missing"
 assert_out '^powerkey +missing +acpid package not installed' "fresh: powerkey missing (acpid first)"
 assert_out '^lidar-ptp +unmanaged +not managed yet; units absent' "fresh: lidar-ptp unmanaged"
+assert_out '^ready-chime +missing +sound .*ready.wav missing' "fresh: ready-chime missing (sound first)"
 assert_out 'sudo stretch_apply_settings --apply' "fresh: tells the apply command"
 
 run "$SAS" --check --json
 assert_rc 1 "fresh json check"
 assert_json "d['tool'] == 'stretch_apply_settings' and d['version'] == 1" "json tool and version"
-assert_json "[i['state'] for i in d['items']] == ['missing', 'missing', 'unmanaged']" "json states $(json_states)"
-assert_json "d['summary'] == {'ok': 0, 'missing': 2, 'changed': 0, 'failed': 0, 'unmanaged': 1}" "json summary counts"
+assert_json "[i['state'] for i in d['items']] == ['missing', 'missing', 'unmanaged', 'missing']" "json states $(json_states)"
+assert_json "d['summary'] == {'ok': 0, 'missing': 3, 'changed': 0, 'failed': 0, 'unmanaged': 1}" "json summary counts"
 assert_json "d['action'] == 'sudo stretch_apply_settings --apply' and d['root'] is True" "json action and root flag"
 assert_json "all(i['changed'] is False for i in d['items'])" "json nothing changed on check"
 
@@ -176,9 +184,12 @@ run "$SAS" --dry-run
 assert_rc 1 "dry-run"
 assert_out 'apt-get install -y acpid' "dry-run lists the apt step"
 assert_out 'ln -sfn .*stretch_apply_settings' "dry-run lists the link step"
+assert_out 'install .*ready.wav -> .*sounds/ready.wav' "dry-run lists the chime sound step"
+assert_out 'ln -sfn /etc/systemd/user/hello-ready-chime.service' "dry-run lists the chime enable step"
 assert_out 'Nothing was changed' "dry-run says nothing changed"
 assert_no_file "$HANDLER" "dry-run wrote no handler"
 assert_no_file "$LINK" "dry-run made no link"
+assert_no_file "$CHIME_WAV" "dry-run installed no sound"
 if [ ! -e "$CALLS" ] || ! grep -qvE '^(dpkg-query|systemctl is-)' "$CALLS"; then ok "dry-run ran no write command"; else bad "dry-run ran a write command" "$(cat "$CALLS")"; fi
 assert_no_file "$LOG" "dry-run wrote no log"
 
@@ -191,6 +202,7 @@ assert_rc 0 "apply"
 assert_out '^command +changed' "apply: command changed"
 assert_out '^powerkey +changed +acpid handles the power button' "apply: powerkey changed, reason from check"
 assert_out '^lidar-ptp +unmanaged' "apply: lidar-ptp left unmanaged"
+assert_out '^ready-chime +changed +chime installed, hello-ready-chime.service enabled' "apply: ready-chime changed, reason from check"
 assert_out 'Applied\. Log: ' "apply: summary names the log"
 assert_file "$HANDLER" "handler written"
 assert_file "$EVENT" "acpid event written"
@@ -211,15 +223,29 @@ assert_call '^systemctl restart acpid' "acpid restarted"
 assert_file "$LOG" "log written"
 assert_true "log records powerkey done" grep -q " powerkey apply: done" "$LOG"
 assert_true "log records command done" grep -q " command apply: done" "$LOG"
+assert_file "$CHIME_WAV" "chime sound installed"
+assert_file "$CHIME_BIN" "chime player installed"
+assert_file "$CHIME_UNIT" "chime unit written"
+assert_true "chime sound identical to the repo file" cmp -s "$CHIME_SRC/ready.wav" "$CHIME_WAV"
+assert_true "chime player identical to the repo file" cmp -s "$CHIME_SRC/hello-ready-chime" "$CHIME_BIN"
+assert_true "chime player executable" test -x "$CHIME_BIN"
+assert_true "chime unit starts after the body server" grep -q "^After=stretch_body_server.service" "$CHIME_UNIT"
+assert_true "chime unit runs the player" grep -q "^ExecStart=/usr/local/bin/hello-ready-chime$" "$CHIME_UNIT"
+assert_true "chime unit wanted by default.target" grep -q "^WantedBy=default.target" "$CHIME_UNIT"
+assert_true "chime enabled by a wants link" test -L "$CHIME_WANT"
+assert_true "chime wants link points at the unit" test "$(readlink "$CHIME_WANT")" = /etc/systemd/user/hello-ready-chime.service
+assert_call '^systemctl --user -M [a-z_-]+@ daemon-reload' "user manager reloaded for the chime unit"
+assert_true "log records ready-chime done" grep -q " ready-chime apply: done" "$LOG"
 
 # ---------------------------------------------------------------- settled system
 run "$SAS"
 assert_rc 0 "check after apply"
 assert_out '^command +ok' "settled: command ok"
 assert_out '^powerkey +ok' "settled: powerkey ok"
+assert_out '^ready-chime +ok' "settled: ready-chime ok"
 assert_out 'Everything is in place' "settled: nothing to run"
 run "$SAS" --json
-assert_json "d['summary']['missing'] == 0 and d['summary']['ok'] == 2 and d['action'] is None" "settled json"
+assert_json "d['summary']['missing'] == 0 and d['summary']['ok'] == 3 and d['action'] is None" "settled json"
 
 calls_before="$(wc -l < "$CALLS")"
 run "$SAS" --apply --json
@@ -245,6 +271,16 @@ assert_out '^powerkey +changed' "repair changed powerkey"
 assert_false "handler rewritten" grep -q tampered "$HANDLER"
 run "$SAS" --only command
 assert_rc 0 "--only command still ok"
+printf '\n# drifted\n' >> "$CHIME_UNIT"
+run "$SAS" --only ready-chime
+assert_rc 1 "drifted chime unit is missing"
+assert_out 'unit .* missing or different' "chime drift reason names the unit"
+rm -f "$CHIME_WANT"
+run "$SAS" --apply --only ready-chime
+assert_rc 0 "chime repair apply"
+assert_out '^ready-chime +changed' "repair changed ready-chime"
+assert_true "chime unit rewritten" cmp -s <(grep -c drifted "$CHIME_UNIT") <(echo 0)
+assert_true "chime wants link back" test -L "$CHIME_WANT"
 
 # ---------------------------------------------------------------- PTP stub reporting
 mkdir -p "$ROOT/etc/systemd/system"
@@ -278,6 +314,17 @@ assert_true "log records the revert" grep -q " powerkey revert: done" "$LOG"
 run "$SAS" --revert command
 assert_rc 0 "revert command"
 assert_no_file "$LINK" "revert removed the link"
+
+run "$SAS" --revert ready-chime --json
+assert_rc 0 "revert ready-chime"
+assert_json "d['items'][0]['id'] == 'ready-chime' and d['items'][0]['state'] == 'reverted'" "revert ready-chime json"
+assert_no_file "$CHIME_WAV" "revert removed the chime sound"
+assert_no_file "$CHIME_BIN" "revert removed the chime player"
+assert_no_file "$CHIME_UNIT" "revert removed the chime unit"
+assert_no_file "$CHIME_WANT" "revert removed the chime wants link"
+run "$SAS" --only ready-chime
+assert_rc 1 "ready-chime missing after revert"
+assert_true "log records the chime revert" grep -q " ready-chime revert: done" "$LOG"
 
 run "$SAS" --revert lidar-ptp
 assert_rc 2 "revert on an item without revert"
