@@ -3,10 +3,13 @@ set -e
 
 REDIRECT_LOGDIR="$HOME/stretch_user/log"
 CREATE_USER=""
+DEB_FILE=""
+STRETCH_DEB_NAME="hello-robot-stretch4-system"
+STRETCH_PREFIX="/opt/hello-robot/stretch4"
 declare -a FORWARD_ARGS
 OPTIND=1
 
-while getopts ":l:u:" opt; do
+while getopts ":l:u:d:" opt; do
   case $opt in
     l)
       if [[ -d $OPTARG ]]; then
@@ -16,6 +19,16 @@ while getopts ":l:u:" opt; do
       ;;
     u)
       CREATE_USER=$OPTARG
+      ;;
+    d)
+      # Install the system package from a local .deb (built by stretch_create_deb_package.sh)
+      # instead of from the apt repository
+      if [[ ! -f $OPTARG ]]; then
+          echo "Package file not found: $OPTARG" >&2
+          exit 1
+      fi
+      DEB_FILE=$(readlink -f "$OPTARG")
+      FORWARD_ARGS+=("-d" "$DEB_FILE")
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -110,7 +123,16 @@ else
     if [[ $factory_osdir = "24.04" ]]; then
         echo "export PIP_BREAK_SYSTEM_PACKAGES=1" >> ~/.bashrc
         echo "export RMW_IMPLEMENTATION=rmw_zenoh_cpp" >> ~/.bashrc
-        echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
+        echo "source $STRETCH_PREFIX/setup.bash" >> ~/.bashrc
+    fi
+fi
+if [[ $factory_osdir = "24.04" ]] && ! grep -qxF "source $STRETCH_PREFIX/setup.bash" ~/.bashrc; then
+    echo "Update ~/.bashrc dotfile to source $STRETCH_DEB_NAME..."
+    if grep -qxF "source /opt/ros/jazzy/setup.bash" ~/.bashrc; then
+        # Keep it ahead of any workspace overlay sourced later in the file
+        sed -i "\|^source /opt/ros/jazzy/setup.bash\$|a source $STRETCH_PREFIX/setup.bash" ~/.bashrc
+    else
+        echo "source $STRETCH_PREFIX/setup.bash" >> ~/.bashrc
     fi
 fi
 
@@ -198,32 +220,38 @@ if [[ $factory_osdir = "24.04" ]]; then
     echo "Disabling audio suppression"
     python3 $HOME/stretch4_install/factory/$factory_osdir/hello_robot_audio_disable_suspension.py &>> $REDIRECT_LOGFILE
     
+    echo "###########################################"
+    echo "INSTALLATION OF $STRETCH_DEB_NAME"
+    echo "###########################################"
+    SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+    source "$SCRIPT_DIR/factory/$factory_osdir/stretch_apt_common.sh"
+    apt_configure
+    echo "Add apt sources (universe, Intel graphics, ROS 2, NodeSource)"
+    add_stretch_apt_sources &>> $REDIRECT_LOGFILE
+    preseed_debconf
+    if [ -n "$DEB_FILE" ]; then
+        echo "Install $DEB_FILE (this might take a while)"
+        retry_cmd sudo apt-get install -y "$DEB_FILE" &>> $REDIRECT_LOGFILE
+    else
+        candidate=$(apt-cache policy $STRETCH_DEB_NAME | sed -n 's/ *Candidate: //p')
+        if [[ -z $candidate || $candidate = "(none)" ]]; then
+            echo "$STRETCH_DEB_NAME is not available from any configured apt repository."
+            echo "Add the Hello Robot apt repository, or pass a local package with -d <file.deb>."
+            exit 1
+        fi
+        echo "Install $STRETCH_DEB_NAME $candidate (this might take a while)"
+        retry_cmd sudo apt-get install -y $STRETCH_DEB_NAME &>> $REDIRECT_LOGFILE
+    fi
+
+    echo "Remove user level copies of the Stretch pip packages (now provided by $STRETCH_DEB_NAME)"
     export PIP_BREAK_SYSTEM_PACKAGES=1
-    echo "###########################################"
-    echo "INSTALLATION OF USER LEVEL PIP3 PACKAGES"
-    echo "###########################################"
-    echo "Upgrade pip3"
-    python3 -m pip -q install --no-warn-script-location --user --upgrade pip &>> $REDIRECT_LOGFILE
-    echo "Clear pip cache"
-    python3 -m pip cache purge &>> $REDIRECT_LOGFILE
-    
-    echo "Install Stretch4 URDF"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-urdf &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch Flying Gripper"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-flying-gripper &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch4 Body"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-body &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch 4 Tray"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-tray &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch4 PyHesai Wrapper"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-pyhesai-wrapper &>> $REDIRECT_LOGFILE
-
-    echo "Install Stretch 4 Kinematics"
-    python3 -m pip -q install --upgrade hello-robot-stretch4-kinematics &>> $REDIRECT_LOGFILE
+    for pkg in hello-robot-stretch4-urdf hello-robot-stretch4-flying-gripper hello-robot-stretch4-body \
+               hello-robot-stretch4-tray hello-robot-stretch4-pyhesai-wrapper hello-robot-stretch4-kinematics; do
+        location=$(python3 -m pip show $pkg 2> /dev/null | sed -n 's/^Location: //p')
+        if [[ $location == $HOME/.local/* ]]; then
+            python3 -m pip uninstall -y $pkg &>> $REDIRECT_LOGFILE
+        fi
+    done
 
     # # TODO: doesn't work in a fresh install currently, needs investigation
     # echo "###########################################"
@@ -251,6 +279,40 @@ echo ""
 echo "###########################################"
 echo "CREATING ROS WORKSPACE"
 echo "###########################################"
+# The prebuilt ROS 2 packages come from $STRETCH_DEB_NAME. ~/ament_ws is an overlay holding
+# stretch4_web_teleop, which runs from source with this robot's certificates. To build the
+# whole workspace from source instead, run stretch_update_ros_workspace.sh.
 if [[ $factory_osdir = "24.04" ]]; then
-    ~/stretch4_install/factory/$factory_osdir/stretch_create_ament_workspace.sh -w "$HOME/ament_ws" -l $REDIRECT_LOGDIR
+    AMENT_WSDIR="$HOME/ament_ws"
+    export COLCON_EXTENSION_BLOCKLIST=colcon_core.event_handler.desktop_notification
+    source $STRETCH_PREFIX/setup.bash
+
+    if [[ -d $AMENT_WSDIR ]]; then
+        AMENT_WSDIR_BACKUP="${AMENT_WSDIR}_backup_`date '+%Y%m%d%H%M'`"
+        echo "Moving the existing workspace to $AMENT_WSDIR_BACKUP..."
+        mv "$AMENT_WSDIR" "$AMENT_WSDIR_BACKUP"
+    fi
+    echo "Creating the workspace at $AMENT_WSDIR..."
+    mkdir -p $AMENT_WSDIR/src
+    cp -a $STRETCH_PREFIX/src/stretch4_web_teleop $AMENT_WSDIR/src/
+
+    echo "Generating web interface certs..."
+    cd $AMENT_WSDIR/src/stretch4_web_teleop/certificates
+    CAROOT=`pwd` mkcert --install &>> $REDIRECT_LOGFILE
+    mkdir -p ~/.local/share/mkcert
+    rm -rf ~/.local/share/mkcert/root*
+    cp root* ~/.local/share/mkcert
+    mkcert ${HELLO_FLEET_ID} ${HELLO_FLEET_ID}.local ${HELLO_FLEET_ID}.dev localhost 127.0.0.1 0.0.0.0 ::1 &>> $REDIRECT_LOGFILE
+    cd $AMENT_WSDIR/src/stretch4_web_teleop
+    touch .env
+    echo certfile=${HELLO_FLEET_ID}+6.pem >> .env
+    echo keyfile=${HELLO_FLEET_ID}+6-key.pem >> .env
+
+    echo "Compile the workspace..."
+    cd $AMENT_WSDIR
+    colcon build --symlink-install &>> $REDIRECT_LOGFILE
+
+    echo "Update ~/.bashrc dotfile to source workspace..."
+    grep -qxF "source $AMENT_WSDIR/install/setup.bash" ~/.bashrc || echo "source $AMENT_WSDIR/install/setup.bash" >> ~/.bashrc
+    grep -qxF "source /usr/share/colcon_cd/function/colcon_cd.sh" ~/.bashrc || echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> ~/.bashrc
 fi

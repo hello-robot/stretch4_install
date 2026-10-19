@@ -19,10 +19,9 @@ function install {
 echo "###########################################"
 echo "INSTALLATION OF SYSTEM WIDE PACKAGES"
 echo "###########################################"
-echo "Apt update & upgrade (this might take a while)"
-sudo apt-add-repository universe -y >> $REDIRECT_LOGFILE
-sudo add-apt-repository -y ppa:kobuk-team/intel-graphics >> $REDIRECT_LOGFILE
-retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
+echo "Add apt sources (universe, Intel graphics, ROS 2, NodeSource)"
+add_stretch_apt_sources &>> $REDIRECT_LOGFILE
+echo "Apt upgrade (this might take a while)"
 retry_cmd sudo apt-get --yes upgrade &>> $REDIRECT_LOGFILE
 echo "Install zip & unzip"
 install zip unzip
@@ -41,8 +40,7 @@ install ipython3
 echo "Install pip3"
 install python3-pip
 echo "Install Emacs packages"
-sudo bash -c 'echo "postfix postfix/mailname string my.hostname.example" | debconf-set-selections'
-sudo bash -c 'echo "postfix postfix/main_mailer_type string '\''Internet Site'\''" | debconf-set-selections'
+preseed_debconf
 install emacs yaml-mode
 echo "Install nettools"
 install net-tools
@@ -94,20 +92,6 @@ echo ""
 echo "###########################################"
 echo "INSTALLATION OF ROS 2 JAZZY"
 echo "###########################################"
-echo "Install ros-apt-source"
-function install_ros_apt_source {
-    export ROS_APT_SOURCE_VERSION=$(curl -s --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 15 https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F'"' '{print $4}')
-    echo $ROS_APT_SOURCE_VERSION
-    if [[ -z $ROS_APT_SOURCE_VERSION ]]; then
-        echo "ERROR: could not reach the GitHub API to resolve the ros-apt-source version"
-        return 1
-    fi
-    curl -L --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 15 -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb"
-    sudo dpkg -i /tmp/ros2-apt-source.deb
-}
-install_ros_apt_source &>> $REDIRECT_LOGFILE
-echo "Apt update"
-retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install ROS 2 Jazzy (this might take a while)"
 install ros-jazzy-desktop-full
 # https://discourse.ros.org/t/ros-developer-tools-now-in-binary-form/29802
@@ -146,20 +130,6 @@ echo ""
 echo "###########################################"
 echo "INSTALLATION OF WEB INTERFACE"
 echo "###########################################"
-echo "Register the nodesource APT server's public key"
-function register_nodesource_apt_server {
-    sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 15 https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
-}
-register_nodesource_apt_server &>> $REDIRECT_LOGFILE
-echo "Add the nodesource APT server to the list of APT respositories"
-function add_nodesource_apt_server {
-    NODE_MAJOR=24
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg, arch=amd64] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-}
-add_nodesource_apt_server &>> $REDIRECT_LOGFILE
-echo "Apt update"
-retry_cmd sudo apt-get --yes update >> $REDIRECT_LOGFILE
 echo "Install NodeJS"
 install nodejs
 # echo "Install PyPCL and PyKDL"
