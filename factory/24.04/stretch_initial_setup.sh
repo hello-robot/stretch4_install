@@ -219,6 +219,54 @@ EOF"
 sudo chmod 600 /etc/netplan/99-stretch.yaml
 sudo netplan apply &>> /dev/null
 
+echo "Configuring wifi recovery..."
+# Wifi country must match where the robot will be used. Without one the card
+# runs the world domain and often cannot join 5 GHz networks.
+WIFI_COUNTRY=${STRETCH_WIFI_COUNTRY:-US}
+echo "options cfg80211 ieee80211_regdom=$WIFI_COUNTRY" | sudo tee /etc/modprobe.d/stretch-wifi-country.conf > /dev/null
+
+# Keep retrying after a failed join and keep the radio out of power save
+sudo bash -c "cat > /etc/NetworkManager/conf.d/99-stretch-wifi.conf <<EOF
+[connection]
+wifi.powersave=2
+connection.autoconnect-retries=0
+EOF"
+
+# A failed WPA handshake leaves the profile waiting for a password that nobody
+# is there to type, and NetworkManager stops auto-connecting it. Reconnect
+# the wifi device once a minute while it has no connection.
+sudo bash -c "cat > /usr/local/sbin/stretch-wifi-recover <<'EOF'
+#!/bin/bash
+nmcli -t -f TYPE,STATE device | grep -q '^wifi:connected' && exit 0
+nmcli radio wifi | grep -q enabled || exit 0
+dev=\$(nmcli -t -f DEVICE,TYPE device | awk -F: '\$2==\"wifi\"{print \$1; exit}')
+[ -n \"\$dev\" ] && nmcli device connect \"\$dev\" > /dev/null 2>&1
+exit 0
+EOF"
+sudo chmod 755 /usr/local/sbin/stretch-wifi-recover
+sudo bash -c "cat > /etc/systemd/system/stretch-wifi-recover.service <<EOF
+[Unit]
+Description=Reconnect wifi after a failed join
+After=NetworkManager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/stretch-wifi-recover
+EOF"
+sudo bash -c "cat > /etc/systemd/system/stretch-wifi-recover.timer <<EOF
+[Unit]
+Description=Check wifi once a minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target
+EOF"
+sudo systemctl daemon-reload
+sudo systemctl enable --now stretch-wifi-recover.timer &> /dev/null
+
 echo 'Blacklisting hid_nintendo that conflicts with Xpad driver...'
 function blacklist_hid_nintendo {
     echo  '# Nintendo conflicts with Xpad controller driver' | sudo tee -a /etc/modprobe.d/blacklist.conf
