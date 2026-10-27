@@ -51,7 +51,6 @@ def say(text):
     print(text, flush=True)
 
 
-# ---------------------------------------------------------------- the decision
 def _transport_errors(transport):
     """Sum of the read and write error counters of a device transport dict."""
     total = 0
@@ -187,7 +186,6 @@ class ReadyTracker:
         return ', '.join(self.last_reasons) if self.last_reasons else 'ready'
 
 
-# ---------------------------------------------------------------- reading the server
 class StatusReader:
     """SUB on the server's status socket, latest message only. Sends nothing."""
 
@@ -245,7 +243,6 @@ def wait_until_ready(read, cap_s=CAP_S, hold_s=HOLD_S, poll_s=POLL_S,
         sleep(poll_s)
 
 
-# ---------------------------------------------------------------- playing
 def pick_target():
     """node.name of the robot's USB speaker sink, or None for the default sink."""
     try:
@@ -297,7 +294,6 @@ def play(wav, volume=VOLUME):
     return False
 
 
-# ---------------------------------------------------------------- main
 def build_parser():
     p = argparse.ArgumentParser(description='Play one soft sound when the robot is ready.')
     p.add_argument('--test', action='store_true', help='play the chime now, no readiness wait')

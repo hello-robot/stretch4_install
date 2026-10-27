@@ -2,11 +2,9 @@
 # Item: ready-chime. One soft sound from the robot's speaker when the robot is ready.
 #
 # After stretch_body_server starts, hello-ready-chime watches the status the server
-# publishes (its status socket only, nothing is sent) and plays ready.wav once the
-# robot has been ready for 2 s: server RUNNING with status flowing, every configured
-# subsystem reporting, power board ACTIVE, no device fault. If that does not happen
-# within 90 s it stays silent and says why in the journal (journalctl --user -u
-# hello-ready-chime). The PIMU's own buzzer is separate and not touched.
+# publishes and plays ready.wav once the robot is ready (what ready means is in the
+# player's docstring). If it is not ready within 90 s it stays silent and says why
+# in the journal. The PIMU's own buzzer is separate and not touched.
 #
 # Files, all ours: the sound, the player, a user unit in /etc/systemd/user (so it
 # runs in the robot user's session, desktop or not) and its default.target.wants

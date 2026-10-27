@@ -4,8 +4,8 @@
 # dpkg-query, systemctl and dconf. The shims record their calls so the harness can
 # assert what was run. Needs bash, python3 and the usual coreutils; no root.
 #
-#   tests/test_system_update.sh            run and report
-#   KEEP=1 tests/test_system_update.sh     leave the fake root behind for a look
+#   tests/test_apply_settings.sh           run and report
+#   KEEP=1 tests/test_apply_settings.sh    leave the fake root behind for a look
 set -u -o pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,7 +28,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ---------------------------------------------------------------- shims
+# shims
 write_shim() {
     # write_shim <name> <body>
     printf '#!/bin/bash\necho "%s $*" >> "%s"\n%s\n' "$1" "$CALLS" "$2" > "$SHIMS/$1"
@@ -61,7 +61,7 @@ export PATH="$SHIMS:$PATH"
 export STRETCH_SYSROOT="$ROOT"
 unset STRETCH_SETTINGS_DIR STRETCH_APPLY_SETTINGS_LOG
 
-# ---------------------------------------------------------------- assertions
+# assertions
 PASS=0
 FAIL=0
 OUT=
@@ -152,7 +152,7 @@ CHIME_SRC="$REPO/factory/24.04/sounds"
 echo "fake root: $ROOT"
 echo
 
-# ---------------------------------------------------------------- list
+# list
 run "$SAS" --list
 assert_rc 0 "list"
 assert_out '^command ' "list names command"
@@ -162,7 +162,7 @@ assert_out '^ready-chime ' "list names ready-chime"
 run "$SAS" --list --json
 assert_json "len(d['items']) == 4 and d['mode'] == 'list'" "list json has 4 items"
 
-# ---------------------------------------------------------------- fresh system
+# fresh system
 run "$SAS"
 assert_rc 1 "fresh check"
 assert_out '^command +missing' "fresh: command missing"
@@ -179,7 +179,7 @@ assert_json "d['summary'] == {'ok': 0, 'missing': 3, 'changed': 0, 'failed': 0, 
 assert_json "d['action'] == 'sudo stretch_apply_settings --apply' and d['root'] is True" "json action and root flag"
 assert_json "all(i['changed'] is False for i in d['items'])" "json nothing changed on check"
 
-# ---------------------------------------------------------------- dry run
+# dry run
 run "$SAS" --dry-run
 assert_rc 1 "dry-run"
 assert_out 'apt-get install -y acpid' "dry-run lists the apt step"
@@ -196,7 +196,7 @@ assert_no_file "$LOG" "dry-run wrote no log"
 run "$SAS" --dry-run --json
 assert_json "d['items'][1]['detail'].count('\\n') >= 5" "dry-run json carries the plan"
 
-# ---------------------------------------------------------------- apply
+# apply
 run "$SAS" --apply
 assert_rc 0 "apply"
 assert_out '^command +changed' "apply: command changed"
@@ -237,7 +237,7 @@ assert_true "chime wants link points at the unit" test "$(readlink "$CHIME_WANT"
 assert_call '^systemctl --user -M [a-z_-]+@ daemon-reload' "user manager reloaded for the chime unit"
 assert_true "log records ready-chime done" grep -q " ready-chime apply: done" "$LOG"
 
-# ---------------------------------------------------------------- settled system
+# settled system
 run "$SAS"
 assert_rc 0 "check after apply"
 assert_out '^command +ok' "settled: command ok"
@@ -260,7 +260,7 @@ else
 fi
 [ "$calls_after" -ge "$calls_before" ] || bad "call log shrank"
 
-# ---------------------------------------------------------------- drift and repair
+# drift and repair
 echo "# tampered" >> "$HANDLER"
 run "$SAS" --only powerkey
 assert_rc 1 "drifted handler is missing"
@@ -282,7 +282,7 @@ assert_out '^ready-chime +changed' "repair changed ready-chime"
 assert_true "chime unit rewritten" cmp -s <(grep -c drifted "$CHIME_UNIT") <(echo 0)
 assert_true "chime wants link back" test -L "$CHIME_WANT"
 
-# ---------------------------------------------------------------- PTP stub reporting
+# PTP stub reporting
 mkdir -p "$ROOT/etc/systemd/system"
 touch "$ROOT/etc/systemd/system/lidar-ptp4l.service"
 run "$SAS" --only lidar-ptp
@@ -298,7 +298,7 @@ run "$SAS" --apply --only lidar-ptp
 assert_rc 0 "apply on the stub is a no-op"
 assert_out '^lidar-ptp +unmanaged' "stub stays unmanaged after apply"
 
-# ---------------------------------------------------------------- revert
+# revert
 run "$SAS" --revert powerkey
 assert_rc 0 "revert powerkey"
 assert_out '^powerkey +reverted' "revert reports reverted"
@@ -330,7 +330,7 @@ run "$SAS" --revert lidar-ptp
 assert_rc 2 "revert on an item without revert"
 assert_out 'has no revert' "revert refusal wording"
 
-# ---------------------------------------------------------------- wrapper and errors
+# wrapper and errors
 run "$REPO/factory/24.04/hello_powerkey_install.sh"
 assert_rc 0 "hello_powerkey_install.sh wrapper applies the item"
 assert_out '^powerkey +changed' "wrapper changed powerkey"
@@ -348,7 +348,7 @@ if [ "$(id -u)" != 0 ]; then
     assert_out 'needs root' "refusal names root"
 fi
 
-# ---------------------------------------------------------------- result
+# result
 echo
 echo "$PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ]

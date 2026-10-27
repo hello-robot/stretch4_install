@@ -2,12 +2,11 @@
 # Item: lidar-ptp. The NUC as PTP grandmaster for the Hesai lidars
 # (lidar-ptp4l.service and lidar-phc2sys.service).
 #
-# Not managed here yet. FAB installs these through stretch_production_tools_ii
+# Not managed here. FAB installs these through stretch_production_tools_ii
 # (python/fab_tests/test_FAB_ptp_grandmaster.py): it installs the linuxptp package,
 # renders the two unit templates for the lidar interface (the one carrying
 # 192.168.1.2), copies /etc/linuxptp/ptp4l.conf and the /usr/local/sbin/lidar-ptp-gm-settings
-# helper, then enables both units. That is more than a copy of unit files, so this
-# item only reports what is on the machine until the install moves here.
+# helper, then enables both units. This item only reports what is on the machine.
 #
 # check exits 3 (unmanaged): the state is shown, it never counts as missing.
 

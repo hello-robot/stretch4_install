@@ -52,7 +52,6 @@ die() {
     exit 2
 }
 
-# ---------------------------------------------------------------- arguments
 MODE=check
 ONLY=
 JSON=0
@@ -74,7 +73,6 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# ---------------------------------------------------------------- item directory
 if [ -n "${STRETCH_SETTINGS_DIR:-}" ]; then
     ITEM_DIR="$STRETCH_SETTINGS_DIR"
 else
@@ -107,7 +105,6 @@ if [ -n "$ONLY" ]; then
     ITEM_FILES=("${FILTERED[@]}")
 fi
 
-# ---------------------------------------------------------------- root and log
 is_root() {
     [ "$(id -u)" = "0" ] || [ -n "$SAS_ROOT" ]
 }
@@ -128,7 +125,6 @@ sas_log() {
 }
 export -f sas_log
 
-# ---------------------------------------------------------------- running an item
 # run_fn <file> <function>: source the item in a subshell and call one function.
 # Stdout goes to RUN_OUT, the exit status to RUN_RC.
 RUN_OUT=
@@ -163,7 +159,6 @@ check_item() {
     esac
 }
 
-# ---------------------------------------------------------------- output helpers
 json_escape() {
     local s=$1
     s=${s//\\/\\\\}
@@ -264,7 +259,6 @@ emit_summary() {
     esac
 }
 
-# ---------------------------------------------------------------- modes
 exit_code=0
 
 mode_list() {
