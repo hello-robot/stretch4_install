@@ -193,7 +193,7 @@ class WaitTests(unittest.TestCase):
             if i == 5:
                 s['lift']['motor']['is_drv_fault'] = True
             return s
-        ready, reason, elapsed = run_wait(samples)
+        ready, _, elapsed = run_wait(samples)
         self.assertTrue(ready)
         # each poll is 0.2 s of fake time; the hold restarts after the fault at 1.1 s
         self.assertGreaterEqual(elapsed, 5 * 0.2 + 2.0)
