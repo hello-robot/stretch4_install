@@ -143,6 +143,19 @@ echo "Setting up startup scripts..."
 mkdir -p ~/.local/bin
 sudo cp $DIR/hello_robot_audio.sh /usr/bin/
 
+echo "Setting up the power key countdown..."
+sudo install -m 755 $DIR/hello_powerkey.py /usr/local/sbin/hello_powerkey.py
+sudo cp $DIR/hello-powerkey.service /etc/systemd/system/
+sudo systemctl enable hello-powerkey.service
+sudo mkdir -p /etc/dconf/db/local.d/locks /etc/dconf/db/gdm.d/locks
+printf "user-db:user\nsystem-db:local\n" | sudo tee /etc/dconf/profile/user > /dev/null
+printf "user-db:user\nsystem-db:gdm\nfile-db:/var/lib/gdm3/greeter-dconf-defaults\n" | sudo tee /etc/dconf/profile/gdm > /dev/null
+for db in local gdm; do
+    printf "[org/gnome/settings-daemon/plugins/power]\npower-button-action='nothing'\n" | sudo tee /etc/dconf/db/$db.d/10-hello-powerkey > /dev/null
+    echo "/org/gnome/settings-daemon/plugins/power/power-button-action" | sudo tee /etc/dconf/db/$db.d/locks/hello-powerkey > /dev/null
+done
+sudo dconf update
+
 echo "Setting up apt retries..."
 echo 'Acquire::Retries "3";' > 80-retries
 sudo mv 80-retries /etc/apt/apt.conf.d/
