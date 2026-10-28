@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Power key: power off 10 s after a press, a second press inside the 10 s cancels.
+"""Power key: power off 3 s after a press, a second press inside the 3 s cancels.
 
 The power board passes the robot's power button to the NUC as its power key and
 turns the robot off once the NUC is off. This reads the Power Button input
@@ -17,7 +17,8 @@ import time
 FMT = 'llHHi'
 SZ = struct.calcsize(FMT)
 KEY_POWER = 116
-COUNTDOWN_S = 10
+COUNTDOWN_S = 3
+LATE_CANCEL_S = 0.5  # the robot forwards a cancel pressed as its 3 s blink ends a little after 3 s
 
 
 def power_button_events():
@@ -72,48 +73,43 @@ def update_dialog(dialog, remaining):
 
 def close_dialog(dialog):
     if dialog is not None and dialog.poll() is None:
-        dialog.kill()
+        dialog.terminate()
 
 
 def main():
-    fds = {}
-    for name in power_button_events():
-        try:
-            fds[os.open('/dev/input/%s' % name, os.O_RDONLY | os.O_NONBLOCK)] = name
-        except OSError:
-            pass
-    print('ARMED on %s' % sorted(fds.values()), flush=True)
+    names = power_button_events()
+    if not names:
+        raise SystemExit('no Power Button input device')
+    fds = [os.open('/dev/input/%s' % name, os.O_RDONLY | os.O_NONBLOCK) for name in names]
+    print('ARMED on %s' % names)
     deadline = None
     dialog = None
     while True:
-        r, _, _ = select.select(list(fds), [], [], 1.0)
+        r, _, _ = select.select(fds, [], [], 0.25)
         pressed = False
         for fd in r:
-            try:
-                data = os.read(fd, SZ * 64)
-            except OSError:
-                continue
+            data = os.read(fd, SZ * 64)
             for off in range(0, len(data) - SZ + 1, SZ):
                 _, _, etype, code, val = struct.unpack_from(FMT, data, off)
                 if etype == 1 and code == KEY_POWER and val == 1:
                     pressed = True
         if pressed and deadline is None:
-            print('power key: powering off in %d s' % COUNTDOWN_S, flush=True)
+            print('power key: powering off in %d s' % COUNTDOWN_S)
             deadline = time.monotonic() + COUNTDOWN_S
             dialog = show_dialog()
         elif pressed:
-            print('power key again: shutdown cancelled', flush=True)
+            print('power key again: shutdown cancelled')
             deadline = None
             close_dialog(dialog)
         if deadline is not None:
             remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                print('powering off', flush=True)
+            if remaining <= -LATE_CANCEL_S:
+                print('powering off')
                 close_dialog(dialog)
                 subprocess.run(['systemctl', 'poweroff'])
                 deadline = None
             else:
-                update_dialog(dialog, int(remaining + 0.999))
+                update_dialog(dialog, max(0, int(remaining + 0.999)))
 
 
 if __name__ == '__main__':

@@ -1,8 +1,8 @@
 [Unit]
-Description=Power key: power off 10 s after a press, a second press cancels
+Description=Power key: power off 3 s after a press, a second press cancels
 
 [Service]
-ExecStart=/usr/bin/systemd-inhibit --what=handle-power-key --who=hello-powerkey --why="power key counts down 10 s" --mode=block /usr/bin/python3 -u /usr/local/sbin/hello_powerkey.py
+ExecStart=/usr/bin/systemd-inhibit --what=handle-power-key --who=hello-powerkey --why="power key counts down 3 s" --mode=block /usr/bin/python3 -u /usr/local/sbin/hello_powerkey.py
 Restart=always
 RestartSec=2
 
