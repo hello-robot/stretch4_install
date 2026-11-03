@@ -216,6 +216,11 @@ EOF"
 sudo chmod 600 /etc/netplan/99-stretch.yaml
 sudo netplan apply &>> /dev/null
 
+# Stop the robot from answering ARP for 192.168.1.2 on Wi-Fi (see the conf file)
+sudo cp $DIR/90-stretch-arp.conf /etc/sysctl.d/
+sudo chmod 644 /etc/sysctl.d/90-stretch-arp.conf
+sudo sysctl --system &>> /dev/null
+
 echo 'Blacklisting hid_nintendo that conflicts with Xpad driver...'
 function blacklist_hid_nintendo {
     echo  '# Nintendo conflicts with Xpad controller driver' | sudo tee -a /etc/modprobe.d/blacklist.conf
