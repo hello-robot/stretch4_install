@@ -35,7 +35,7 @@ write_shim() {
     chmod +x "$SHIMS/$1"
 }
 
-write_shim apt-get "case \"\$*\" in *install*acpid*) touch '$STATE/pkg.acpid' ;; esac; exit 0"
+write_shim apt-get "exit 0"
 
 write_shim dpkg-query "pkg=\${!#}
 if [ -e '$STATE/pkg.'\"\$pkg\" ]; then echo 'install ok installed'; exit 0; fi
@@ -55,7 +55,7 @@ case \"\$verb\" in
 esac
 exit 0"
 
-write_shim dconf "case \"\$1\" in update) mkdir -p '$ROOT/etc/dconf/db'; touch '$ROOT/etc/dconf/db/local' ;; esac; exit 0"
+write_shim dconf "case \"\$1\" in update) mkdir -p '$ROOT/etc/dconf/db'; touch '$ROOT/etc/dconf/db/local' '$ROOT/etc/dconf/db/gdm' ;; esac; exit 0"
 
 export PATH="$SHIMS:$PATH"
 export STRETCH_SYSROOT="$ROOT"
@@ -136,11 +136,16 @@ assert_false() {
     if "$@" >/dev/null 2>&1; then bad "$label: $* succeeded"; else ok "$label"; fi
 }
 
-HANDLER="$ROOT/usr/local/sbin/hello-powerkey"
+HANDLER="$ROOT/usr/local/sbin/hello_powerkey.py"
+UNIT="$ROOT/etc/systemd/system/hello-powerkey.service"
+OLD_HANDLER="$ROOT/usr/local/sbin/hello-powerkey"
 EVENT="$ROOT/etc/acpi/events/hello-powerbtn"
 KEYFILE="$ROOT/etc/dconf/db/local.d/10-hello-powerkey"
 LOCK="$ROOT/etc/dconf/db/local.d/locks/hello-powerkey"
+GDM_KEYFILE="$ROOT/etc/dconf/db/gdm.d/10-hello-powerkey"
+GDM_LOCK="$ROOT/etc/dconf/db/gdm.d/locks/hello-powerkey"
 PROFILE="$ROOT/etc/dconf/profile/user"
+GDM_PROFILE="$ROOT/etc/dconf/profile/gdm"
 LINK="$ROOT/usr/local/bin/stretch_apply_settings"
 LOG="$ROOT/var/log/stretch_apply_settings.log"
 CHIME_WAV="$ROOT/usr/local/share/hello-robot/sounds/ready.wav"
@@ -166,7 +171,7 @@ assert_json "len(d['items']) == 4 and d['mode'] == 'list'" "list json has 4 item
 run "$SAS"
 assert_rc 1 "fresh check"
 assert_out '^command +missing' "fresh: command missing"
-assert_out '^powerkey +missing +acpid package not installed' "fresh: powerkey missing (acpid first)"
+assert_out '^powerkey +missing +script .*hello_powerkey.py missing' "fresh: powerkey missing (script first)"
 assert_out '^lidar-ptp +unmanaged +not managed yet; units absent' "fresh: lidar-ptp unmanaged"
 assert_out '^ready-chime +missing +sound .*ready.wav missing' "fresh: ready-chime missing (sound first)"
 assert_out 'sudo stretch_apply_settings --apply' "fresh: tells the apply command"
@@ -182,7 +187,7 @@ assert_json "all(i['changed'] is False for i in d['items'])" "json nothing chang
 # dry run
 run "$SAS" --dry-run
 assert_rc 1 "dry-run"
-assert_out 'apt-get install -y acpid' "dry-run lists the apt step"
+assert_out 'install .*hello_powerkey.py -> .*sbin/hello_powerkey.py' "dry-run lists the powerkey script step"
 assert_out 'ln -sfn .*stretch_apply_settings' "dry-run lists the link step"
 assert_out 'install .*ready.wav -> .*sounds/ready.wav' "dry-run lists the chime sound step"
 assert_out 'ln -sfn /etc/systemd/user/hello-ready-chime.service' "dry-run lists the chime enable step"
@@ -200,26 +205,29 @@ assert_json "d['items'][1]['detail'].count('\\n') >= 5" "dry-run json carries th
 run "$SAS" --apply
 assert_rc 0 "apply"
 assert_out '^command +changed' "apply: command changed"
-assert_out '^powerkey +changed +acpid handles the power button' "apply: powerkey changed, reason from check"
+assert_out '^powerkey +changed +hello-powerkey counts the power button down' "apply: powerkey changed, reason from check"
 assert_out '^lidar-ptp +unmanaged' "apply: lidar-ptp left unmanaged"
 assert_out '^ready-chime +changed +chime installed, hello-ready-chime.service enabled' "apply: ready-chime changed, reason from check"
 assert_out 'Applied\. Log: ' "apply: summary names the log"
 assert_file "$HANDLER" "handler written"
-assert_file "$EVENT" "acpid event written"
+assert_file "$UNIT" "powerkey unit written"
 assert_file "$KEYFILE" "dconf keyfile written"
 assert_file "$LOCK" "dconf lock written"
+assert_file "$GDM_KEYFILE" "gdm dconf keyfile written"
+assert_file "$GDM_LOCK" "gdm dconf lock written"
 assert_file "$PROFILE" "dconf profile written"
+assert_file "$GDM_PROFILE" "gdm dconf profile written"
 assert_file "$LINK" "command link made"
 assert_true "handler executable" test -x "$HANDLER"
 assert_true "link points at the script" test "$(readlink -f "$LINK")" = "$(readlink -f "$SAS")"
-assert_true "handler powers off" grep -q "^exec systemctl poweroff" "$HANDLER"
-assert_true "event is button/power" grep -q "^event=button/power" "$EVENT"
+assert_true "handler identical to the repo file" cmp -s "$REPO/factory/24.04/hello_powerkey.py" "$HANDLER"
+assert_true "unit holds the power key inhibitor" grep -q "^ExecStart=/usr/bin/systemd-inhibit --what=handle-power-key" "$UNIT"
 assert_true "keyfile sets nothing" grep -q "^power-button-action='nothing'" "$KEYFILE"
 assert_true "profile has system-db:local" grep -q "^system-db:local" "$PROFILE"
-assert_call '^apt-get install -y acpid' "apt-get install acpid called"
+assert_true "gdm profile has system-db:gdm" grep -q "^system-db:gdm" "$GDM_PROFILE"
 assert_call '^dconf update' "dconf update called"
-assert_call '^systemctl enable --now acpid' "acpid enabled"
-assert_call '^systemctl restart acpid' "acpid restarted"
+assert_call '^systemctl enable hello-powerkey' "hello-powerkey enabled"
+assert_call '^systemctl restart hello-powerkey' "hello-powerkey restarted"
 assert_file "$LOG" "log written"
 assert_true "log records powerkey done" grep -q " powerkey apply: done" "$LOG"
 assert_true "log records command done" grep -q " command apply: done" "$LOG"
@@ -264,11 +272,22 @@ fi
 echo "# tampered" >> "$HANDLER"
 run "$SAS" --only powerkey
 assert_rc 1 "drifted handler is missing"
-assert_out 'handler .* missing or different' "drift reason names the handler"
+assert_out 'script .* missing or different' "drift reason names the script"
 run "$SAS" --apply --only powerkey
 assert_rc 0 "repair apply"
 assert_out '^powerkey +changed' "repair changed powerkey"
 assert_false "handler rewritten" grep -q tampered "$HANDLER"
+mkdir -p "$(dirname "$EVENT")"
+echo "event=button/power" > "$EVENT"
+touch "$OLD_HANDLER" "$STATE/active.acpid"
+run "$SAS" --only powerkey
+assert_rc 1 "an earlier acpid handler is missing"
+assert_out 'acpid handler .* powers off at the first press' "acpid reason names the old handler"
+run "$SAS" --apply --only powerkey
+assert_rc 0 "acpid handler apply"
+assert_no_file "$EVENT" "apply removed the acpid event"
+assert_no_file "$OLD_HANDLER" "apply removed the acpid handler"
+assert_call '^systemctl restart acpid' "acpid restarted to drop the event"
 run "$SAS" --only command
 assert_rc 0 "--only command still ok"
 printf '\n# drifted\n' >> "$CHIME_UNIT"
@@ -303,9 +322,11 @@ run "$SAS" --revert powerkey
 assert_rc 0 "revert powerkey"
 assert_out '^powerkey +reverted' "revert reports reverted"
 assert_no_file "$HANDLER" "revert removed the handler"
-assert_no_file "$EVENT" "revert removed the event"
+assert_no_file "$UNIT" "revert removed the unit"
 assert_no_file "$KEYFILE" "revert removed the keyfile"
 assert_no_file "$LOCK" "revert removed the lock"
+assert_no_file "$GDM_KEYFILE" "revert removed the gdm keyfile"
+assert_no_file "$GDM_LOCK" "revert removed the gdm lock"
 assert_file "$PROFILE" "revert left the dconf profile"
 run "$SAS" --only powerkey
 assert_rc 1 "powerkey missing after revert"
