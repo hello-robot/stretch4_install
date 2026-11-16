@@ -37,6 +37,12 @@ BODY_SERVER_ZMQ_PORTS="23114:23116" # Stretch Body Server admin/command/status. 
                                     # when robot.server.enable_network_access is set.
 WEB_TELEOP_HTTP_PORT="80"
 WEB_TELEOP_HTTPS_PORT="443"
+RDP_PORTS="3389:3390"               # GNOME Remote Desktop: Remote Login on 3389, Desktop Sharing
+                                    # moves to 3390 when Remote Login is also enabled
+# RustDesk connections by ID go out through RustDesk's rendezvous/relay servers, so they need no
+# inbound rule. These are only for connecting to the robot's IP directly on the LAN or Tailscale.
+RUSTDESK_DIRECT_IP_PORT="21118"     # TCP, "Direct IP access" in RustDesk's Security settings (off by default)
+# RUSTDESK_LAN_DISCOVERY_PORT="21119" # UDP, lets RustDesk list the robot under its LAN discovery tab
 
 ###############################################################################
 
@@ -106,6 +112,14 @@ sudo ufw allow "$BODY_SERVER_ZMQ_PORTS/tcp" comment 'Stretch: Body Server ZMQ' >
 echo "Allow web teleop ($WEB_TELEOP_HTTP_PORT/tcp, $WEB_TELEOP_HTTPS_PORT/tcp)"
 sudo ufw allow "$WEB_TELEOP_HTTP_PORT/tcp" comment 'Stretch: web teleop HTTP' > /dev/null
 sudo ufw allow "$WEB_TELEOP_HTTPS_PORT/tcp" comment 'Stretch: web teleop HTTPS' > /dev/null
+
+echo "Allow RDP ($RDP_PORTS/tcp)"
+sudo ufw allow "$RDP_PORTS/tcp" comment 'Stretch: RDP' > /dev/null
+
+echo "Allow RustDesk direct IP access ($RUSTDESK_DIRECT_IP_PORT/tcp)"
+sudo ufw allow "$RUSTDESK_DIRECT_IP_PORT/tcp" comment 'Stretch: RustDesk direct IP' > /dev/null
+# echo "Allow RustDesk LAN discovery ($RUSTDESK_LAN_DISCOVERY_PORT/udp)"
+# sudo ufw allow "$RUSTDESK_LAN_DISCOVERY_PORT/udp" comment 'Stretch: RustDesk LAN discovery' > /dev/null
 
 echo "Enable ufw"
 sudo ufw --force enable > /dev/null
