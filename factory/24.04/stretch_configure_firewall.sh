@@ -58,6 +58,8 @@ fi
 if [[ -z "$ETH_IFACE" ]]; then
     ETH_IFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(en|eth)' | head -n 1)
 fi
+# Drop the "@ifN" suffix that ip shows for veth/vlan links (e.g. eth0@if20 in Docker)
+ETH_IFACE=${ETH_IFACE%%@*}
 if [[ -z "$ETH_IFACE" ]]; then
     echo "ERROR: could not find the internal Ethernet interface. Pass it with -i."
     exit 1
@@ -66,7 +68,11 @@ echo "Using internal Ethernet interface: $ETH_IFACE"
 
 if ! command -v ufw &> /dev/null; then
     echo "Install ufw"
-    sudo apt-get install -y ufw > /dev/null
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$SCRIPT_DIR/stretch_apt_common.sh"
+    apt_configure
+    retry_cmd sudo apt-get update > /dev/null
+    retry_cmd sudo apt-get install -y ufw > /dev/null
 fi
 
 echo "Set default policy: deny incoming, allow outgoing"

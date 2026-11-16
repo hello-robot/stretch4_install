@@ -183,7 +183,7 @@ fi
 
 echo "Configuring wired network for Lidar Networking..."
 # Detect the first wired interface (excludes wifi/loopback)
-ETH_IFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(en|eth)' | head -n 1)
+ETH_IFACE=$(ip -o link show | awk -F': ' '{print $2}' | cut -d@ -f1 | grep -E '^(en|eth)' | head -n 1)
 
 # Remove existing TYPE=ethernet connections
 sudo nmcli --terse --fields UUID,TYPE connection show | grep :802-3-ethernet | cut -d: -f1 | while read uuid; do
