@@ -221,6 +221,13 @@ sudo cp $DIR/90-stretch-arp.conf /etc/sysctl.d/
 sudo chmod 644 /etc/sysctl.d/90-stretch-arp.conf
 sudo sysctl --system &>> /dev/null
 
+echo "Capping how long shutdown waits for snapd..."
+# Keeps the power button's yellow 'going to sleep' phase short (see the conf file)
+sudo mkdir -p /etc/systemd/system/snapd.service.d
+sudo cp $DIR/90-stretch-snapd-stop-timeout.conf /etc/systemd/system/snapd.service.d/
+sudo chmod 644 /etc/systemd/system/snapd.service.d/90-stretch-snapd-stop-timeout.conf
+sudo systemctl daemon-reload
+
 echo "Configuring firewall..."
 $DIR/stretch_configure_firewall.sh -i "$ETH_IFACE"
 
