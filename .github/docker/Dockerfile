@@ -35,8 +35,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-create necessary directories that don't exist by default in basic Docker images
-# Also mock udevadm, update-initramfs, nmcli, and netplan which are not useful inside Docker or fail/warn in container environments
+# Also mock udevadm, update-initramfs, nmcli, netplan, systemctl, and ufw which are not useful inside Docker or fail/warn in container environments
+# (ufw can't load firewall rules in a build container, which has no NET_ADMIN capability)
 RUN mkdir -p /etc/udev/rules.d /etc/modprobe.d /etc/apt/keyrings /etc/netplan && \
+    printf '#!/bin/sh\nexit 0\n' > /usr/sbin/ufw && \
+    chmod +x /usr/sbin/ufw && \
     printf '#!/bin/sh\nexit 0\n' > /usr/sbin/update-initramfs && \
     chmod +x /usr/sbin/update-initramfs && \
     printf '#!/bin/sh\nexit 0\n' > /usr/bin/udevadm && \
