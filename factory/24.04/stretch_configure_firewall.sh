@@ -26,6 +26,9 @@ RIGHT_LIDAR_IP="192.168.1.201"
 RIGHT_LIDAR_UDP_PORT="2368"
 LEFT_LIDAR_IP="192.168.1.202"
 LEFT_LIDAR_UDP_PORT="2378"
+# PTP time sync (UDPv4, E2E). The NUC is the lidars' PTP grandmaster (lidar-ptp4l.service from
+# REx_ptp_manager), and the lidars send it Delay_Req (319) and general messages (320) by multicast.
+LIDAR_PTP_UDP_PORTS="319:320"
 
 # Open on all interfaces (Wi-Fi included)
 SSH_PORT="22"
@@ -86,6 +89,10 @@ sudo ufw allow "$SSH_PORT/tcp" comment 'Stretch: SSH' > /dev/null
 echo "Allow Hesai lidar point clouds on $ETH_IFACE only"
 sudo ufw allow in on "$ETH_IFACE" proto udp from "$RIGHT_LIDAR_IP" to any port "$RIGHT_LIDAR_UDP_PORT" comment 'Stretch: right lidar' > /dev/null
 sudo ufw allow in on "$ETH_IFACE" proto udp from "$LEFT_LIDAR_IP" to any port "$LEFT_LIDAR_UDP_PORT" comment 'Stretch: left lidar' > /dev/null
+
+echo "Allow Hesai lidar PTP time sync ($LIDAR_PTP_UDP_PORTS/udp) on $ETH_IFACE only"
+sudo ufw allow in on "$ETH_IFACE" proto udp from "$RIGHT_LIDAR_IP" to any port "$LIDAR_PTP_UDP_PORTS" comment 'Stretch: right lidar PTP' > /dev/null
+sudo ufw allow in on "$ETH_IFACE" proto udp from "$LEFT_LIDAR_IP" to any port "$LIDAR_PTP_UDP_PORTS" comment 'Stretch: left lidar PTP' > /dev/null
 
 echo "Allow all traffic from the Jetson on $ETH_IFACE only"
 sudo ufw allow in on "$ETH_IFACE" from "$JETSON_IP" comment 'Stretch: Jetson' > /dev/null
