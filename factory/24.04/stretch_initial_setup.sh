@@ -186,7 +186,7 @@ fi
 
 echo "Configuring wired network for Lidar Networking..."
 # Detect the first wired interface (excludes wifi/loopback)
-ETH_IFACE=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^(en|eth)' | head -n 1)
+ETH_IFACE=$(ip -o link show | awk -F': ' '{print $2}' | cut -d@ -f1 | grep -E '^(en|eth)' | head -n 1)
 
 # Remove existing TYPE=ethernet connections
 sudo nmcli --terse --fields UUID,TYPE connection show | grep :802-3-ethernet | cut -d: -f1 | while read uuid; do
@@ -271,6 +271,9 @@ sudo systemctl enable --now stretch-wifi-recover.timer &> /dev/null
 sudo cp $DIR/90-stretch-arp.conf /etc/sysctl.d/
 sudo chmod 644 /etc/sysctl.d/90-stretch-arp.conf
 sudo sysctl --system &>> /dev/null
+
+echo "Configuring firewall..."
+$DIR/stretch_configure_firewall.sh -i "$ETH_IFACE"
 
 echo 'Blacklisting hid_nintendo that conflicts with Xpad driver...'
 function blacklist_hid_nintendo {
