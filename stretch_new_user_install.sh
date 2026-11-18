@@ -197,7 +197,10 @@ echo ""
 if [[ $factory_osdir = "24.04" ]]; then
     echo "Disabling audio suppression"
     python3 $HOME/stretch4_install/factory/$factory_osdir/hello_robot_audio_disable_suspension.py &>> $REDIRECT_LOGFILE
-    
+
+    echo "Routing OS power commands through the robot's power board..."
+    sudo $HOME/stretch4_install/factory/$factory_osdir/stretch_power_config.sh --apply &>> $REDIRECT_LOGFILE
+
     export PIP_BREAK_SYSTEM_PACKAGES=1
     echo "###########################################"
     echo "INSTALLATION OF USER LEVEL PIP3 PACKAGES"
