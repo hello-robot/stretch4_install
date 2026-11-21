@@ -117,6 +117,14 @@ run_test ".bashrc contains HELLO_FLEET_ID" \
 run_test ".local/bin directory exists" \
     "$DOCKER_CMD run --rm $IMAGE_NAME test -d /home/hello-robot/.local/bin"
 
+# Test 13: Check if Stretch Body Server service is installed
+run_test "Stretch Body Server service installed" \
+    "$DOCKER_CMD run --rm $IMAGE_NAME test -f /home/hello-robot/.config/systemd/user/stretch_body_server.service"
+
+# Test 14: Check if Stretch Tray service is installed
+run_test "Stretch Tray service installed" \
+    "$DOCKER_CMD run --rm $IMAGE_NAME test -f /home/hello-robot/.config/systemd/user/stretch_tray.service"
+
 echo ""
 echo "========================================"
 echo "Test Summary"
